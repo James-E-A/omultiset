@@ -10,7 +10,7 @@ by adding `omultiset` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:omultiset, "~> 0.1.0"}
+    {:omultiset, "~> 0.2.0"}
   ]
 end
 ```
