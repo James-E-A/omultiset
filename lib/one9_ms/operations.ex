@@ -86,7 +86,7 @@ defmodule One9.Ms do
       ...> |> One9.Ms.size()
       4
 
-  See also `count_element/2` and `empty/1`.
+  See also `count_element/2` and `empty?/1`.
   """
   @spec size(t_lax) :: non_neg_integer
   def size(ms) do
