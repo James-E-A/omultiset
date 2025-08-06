@@ -12,14 +12,15 @@ defmodule One9.Ms do
   default, handled correctly by **all methods** in this module.
 
       iex> One9.Ms.counts([1, 2, 1, 3]) # like Python's "collections.Counter(...)"
-      %{1 => 2, 2 => 1, 3 => 1} # 1 occurs twice, 2 occurs twice, and 3 occurs once.
+      %{1 => 2, 2 => 1, 3 => 1} # 1 occurs twice, 2 occurs once, and 3 occurs once.
+
       iex> One9.Ms.to_list(%{1 => 2, 2 => 1, 3 => 1}) |> Enum.sort()
       [1, 1, 2, 3] # the original list is got back, order notwithstanding
 
-      iex> One9.Ms.counts(nil: 5) # WARNING: GENERALLY NOT WHAT YOU WANT
+      iex> One9.Ms.counts(nil: 5) # WARNING: GENERALLY NOT WHAT YOU WANT...
       ...> |> One9.Ms.to_list()
       [{nil, 5}] # the tuple {nil, 5} occurs once.
-      iex> One9.Ms.from_counts(nil: 5) # USE THIS INSTEAD
+      iex> One9.Ms.from_counts(nil: 5) # ...USE THIS INSTEAD
       ...> |> One9.Ms.to_list()
       [nil, nil, nil, nil, nil] # the atom nil occurs ten times.
 
@@ -82,13 +83,13 @@ defmodule One9.Ms do
   Determine the cardinality of a multiset.
 
       iex> One9.Ms.counts(["duck", "duck", "goose", "duck"])
-      ...> |> One9.Ms.count()
+      ...> |> One9.Ms.size()
       4
 
   See also `count_element/2` and `empty/1`.
   """
-  @spec count(t_lax) :: non_neg_integer
-  def count(ms) do
+  @spec size(t_lax) :: non_neg_integer
+  def size(ms) do
     # No need for a separate "strict" path
     Enum.sum(Map.values(ms))
   end
@@ -103,7 +104,7 @@ defmodule One9.Ms do
       iex> ms |> One9.Ms.count_element("buffalo")
       0
 
-  See also `count/1`.
+  See also `size/1`.
   """
   @spec count_element(t_lax, term) :: non_neg_integer()
   def count_element(ms, element) do
@@ -230,7 +231,7 @@ defmodule One9.Ms do
       iex> One9.Ms.empty?(%{"lie" => 0})
       true
 
-  See also `count/1`.
+  See also `size/1`.
   """
   @spec empty?(t_lax) :: boolean
   @spec empty?(t_lax, :lax) :: boolean
@@ -251,7 +252,7 @@ defmodule One9.Ms do
       iex> One9.Ms.equals?(%{"dollars" => 0}, %{"cents" => 0})
       true
 
-  See also `count/1`.
+  See also `size/1`.
   """
   @spec equals?(t_lax, t_lax) :: boolean
   @spec equals?(t_lax, t_lax, :lax) :: boolean
@@ -399,7 +400,7 @@ defmodule One9.Ms do
   @doc """
   Return the cardinality of the support of a multiset.
 
-  See also `count/1`, to get the cardinality of the multiset itself.
+  See also `size/1`, to get the cardinality of the multiset itself.
 
   ## Examples
 

@@ -9,6 +9,16 @@ defmodule One9.Multiset do
 
   @moduledoc """
   An unordered multiplicitous container type.
+
+      iex> mset = One9.Multiset.new(["duck", "duck", "goose"])
+      iex> mset |> One9.Multiset.to_counts()
+      %{"duck" => 2, "goose" => 1}
+      iex> mset |> One9.Multiset.to_list() |> Enum.sort()
+      ["duck", "duck", "goose"]
+      iex> mset |> Enum.reduce(&(&2 <> &1))
+      "duckduckgoose"
+      iex> mset |> One9.Multiset.member?("spanish inquisition")
+      false
   """
 
   import One9.Ms.Util
@@ -81,13 +91,13 @@ defmodule One9.Multiset do
   ## Examples
 
       iex> One9.Multiset.new(%{a: 1, b: 2})
-      ...> |> One9.Multiset.count()
+      ...> |> One9.Multiset.size()
       3
 
   See also `support_count/1`.
   """
-  @spec count(t) :: non_neg_integer
-  def count(%__MODULE__{counts: ms}), do: Ms.count(ms)
+  @spec size(t) :: non_neg_integer
+  def size(%__MODULE__{counts: ms}), do: Ms.size(ms)
 
   @spec empty?(t) :: boolean
   def empty?(%__MODULE__{counts: ms}), do: Ms.empty?(ms, :strict)
@@ -158,7 +168,7 @@ defmodule One9.Multiset do
   @doc """
   Return the cardinality of the support of a Multiset.
 
-  See also `count/1`.
+  See also `size/1`.
   """
   @spec support_count(t()) :: non_neg_integer()
   def support_count(%__MODULE__{counts: ms}), do: Ms.support_count(ms, :strict)
@@ -181,7 +191,7 @@ defmodule One9.Multiset do
 
   defimpl Inspect, for: One9.Multiset do
     def inspect(multiset, opts) do
-      size = One9.Multiset.count(multiset)
+      size = One9.Multiset.size(multiset)
 
       cond do
         size === 0 ->
@@ -208,7 +218,7 @@ defmodule One9.Multiset do
   end
 
   defimpl Enumerable, for: One9.Multiset do
-    def count(multiset), do: {:ok, One9.Multiset.count(multiset)}
+    def count(multiset), do: {:ok, One9.Multiset.size(multiset)}
 
     def member?(multiset, element), do: {:ok, One9.Multiset.member?(multiset, element)}
 
@@ -333,8 +343,8 @@ defmodule One9.Multiset do
   """
   @spec put(t(e1), e2) :: t(e1 | e2) when e1: term, e2: term
   @spec put(t(e1), e2, pos_integer()) :: t(e1 | e2) when e1: term, e2: term
-  def put(%__MODULE__{counts: ms}, element, count \\ 1),
-    do: %__MODULE__{counts: Ms.put(ms, element, count)}
+  def put(%__MODULE__{counts: ms}, element, size \\ 1),
+    do: %__MODULE__{counts: Ms.put(ms, element, size)}
 
 
   @doc """
@@ -351,8 +361,8 @@ defmodule One9.Multiset do
   @spec delete(t(e), term) :: t(e) when e: term
   @spec delete(t(e), term, :all) :: t(e) when e: term
   @spec delete(t(e), term, non_neg_integer()) :: t(e) when e: term
-  def delete(%__MODULE__{counts: ms}, element, count \\ 1),
-    do: %__MODULE__{counts: Ms.delete(ms, element, count)}
+  def delete(%__MODULE__{counts: ms}, element, size \\ 1),
+    do: %__MODULE__{counts: Ms.delete(ms, element, size)}
 
   @doc """
   ## Examples
@@ -366,8 +376,8 @@ defmodule One9.Multiset do
       {One9.Multiset.new(%{a: 2}), [:b, :b, :b]}
   """
   @spec take(t(e), e1, non_neg_integer()) :: {t(e), [e1]} when e: term, e1: term
-  def take(%__MODULE__{counts: ms}, element, count) do
-    {ms, l} = Ms.take(ms, element, count)
+  def take(%__MODULE__{counts: ms}, element, size) do
+    {ms, l} = Ms.take(ms, element, size)
     {%__MODULE__{counts: ms}, l}
   end
 

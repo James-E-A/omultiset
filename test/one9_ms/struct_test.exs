@@ -64,7 +64,7 @@ defmodule One9.MultisetTest do
       multiset2 <- t(term()),
       multiset3 = One9.Multiset.difference(multiset1, multiset2)
     do
-      assert One9.Multiset.count(multiset3) <= One9.Multiset.count(multiset1)
+      assert One9.Multiset.size(multiset3) <= One9.Multiset.size(multiset1)
     end
   end
 
@@ -74,14 +74,15 @@ defmodule One9.MultisetTest do
       multiset1 <- map(t(term()), &One9.Multiset.sum(multiset2, &1)),
       multiset3 = One9.Multiset.difference!(multiset1, multiset2)
     do
-      assert One9.Multiset.count(multiset3) <= One9.Multiset.count(multiset1)
+      assert One9.Multiset.size(multiset3) <= One9.Multiset.size(multiset1)
     end
   end
 
   property "empty works as expected" do
     check all multiset <- t(term()) do
-      assert One9.Multiset.empty?(multiset) ===
-             (One9.Multiset.count(multiset) === 0)
+      assert \
+        One9.Multiset.empty?(multiset) ===
+          (One9.Multiset.size(multiset) === 0)
     end
   end
 
@@ -136,9 +137,9 @@ defmodule One9.MultisetTest do
       multiset2 <- t(term()),
       multiset3 = One9.Multiset.intersection(multiset1, multiset2)
     do
-      assert One9.Multiset.count(multiset3) <= min(
-        One9.Multiset.count(multiset1),
-        One9.Multiset.count(multiset2)
+      assert One9.Multiset.size(multiset3) <= min(
+        One9.Multiset.size(multiset1),
+        One9.Multiset.size(multiset2)
       )
     end
   end

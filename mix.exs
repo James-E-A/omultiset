@@ -4,14 +4,23 @@ defmodule One9.Ms.MixProject do
   def project do
     [
       app: :omultiset,
-      version: "0.2.0",
+      version: "0.3.0",
       elixir: "~> 1.17", # FIXME: check what actual minimum version works
       start_permanent: Mix.env() == :prod,
+      package: package(),
       deps: deps()
     ]
   end
 
   defp deps do [
     {:stream_data, "~> 1.0", only: :test},
+    {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+  ] end
+
+  defp package do [
+    name: "omultiset",
+    description: "Highly efficient Multiset library. A struct with complete `Enumerable` and `Inspect` implementations, plus utilities to manipulate \"plain\" multiplicity maps.",
+    licenses: ["BSD-3-Clause"],
+    links: %{"source" => "https://github.com/James-E-A/omultiset"},
   ] end
 end
