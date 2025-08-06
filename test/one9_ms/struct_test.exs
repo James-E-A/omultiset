@@ -99,22 +99,30 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "from_elements preserves length" do
-    check all \
-      elements <- list_of(term()),
-      multiset = One9.Multiset.from_elements(elements)
-    do
-      assert Enum.count(multiset) === length(elements)
-    end
-  end
-
-  property "from_elements preserves membership" do
+  property "Enumerable member? from_elements" do
     check all \
       elements <- list_of(term()),
       multiset = One9.Multiset.from_elements(elements),
       element <- term() |> and_members_of(elements)
     do
-      assert (element in multiset) === (element in elements)
+      assert \
+        Enum.member?(multiset, element) ===
+          Enum.member?(elements, element)
+    end
+  end
+
+  property "from_elements round-trip" do
+    check all \
+      elements <- list_of(term()),
+      multiset = One9.Multiset.from_elements(elements)
+    do
+      assert \
+        Enum.sort(One9.Multiset.to_list(multiset)) ===
+          Enum.sort(elements)
+
+      assert \
+        Enum.sort(Enum.to_list(multiset)) ===
+          Enum.sort(elements)
     end
   end
 
@@ -131,7 +139,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "intersection preserves length" do
+  property "intersection preserves size" do
     check all \
       multiset1 <- t(term()),
       multiset2 <- t(term()),
@@ -155,7 +163,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "put works as expected" do
+  property "put basic correctness" do
     check all \
       multiset1 <- t(term()),
       element <- term() |> and_members_of(multiset1),
@@ -167,32 +175,50 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "delete works as expected" do
+  property "put preserves size" do
     check all \
       multiset1 <- t(term()),
       element <- term() |> and_members_of(multiset1),
       count <- non_negative_integer(),
-      multiset2 = One9.Multiset.delete(multiset1, element, count)
+      multiset2 = One9.Multiset.put(multiset1, element, count)
     do
-      assert One9.Multiset.count_element(multiset2, element) ===
-             max(One9.Multiset.count_element(multiset1, element) - count, 0)
+      One9.Multiset.size(multiset2) >= One9.Multiset.size(multiset1)
     end
+  end
 
+  property "delete basic correctness" do
     check all \
       multiset1 <- t(term()),
       element <- term() |> and_members_of(multiset1),
-      multiset2 = One9.Multiset.delete(multiset1, element, :all)
+      count <- one_of([non_negative_integer(), constant(:all), constant(nil)]),
+      multiset2 = case(count, do: (nil -> One9.Multiset.delete(multiset1, element); count -> One9.Multiset.delete(multiset1, element, count)))
     do
-      assert One9.Multiset.count_element(multiset2, element) === 0
-    end
+      case count do
+        nil ->
+          assert \
+            One9.Multiset.count_element(multiset2, element) ===
+              max(One9.Multiset.count_element(multiset1, element) - 1, 0)
 
+        count when is_integer(count) ->
+          assert \
+            One9.Multiset.count_element(multiset2, element) ===
+              max(One9.Multiset.count_element(multiset1, element) - count, 0)
+
+        :all ->
+          assert \
+            One9.Multiset.count_element(multiset2, element) === 0
+      end
+    end
+  end
+
+  property "delete preserves size" do
     check all \
       multiset1 <- t(term()),
       element <- term() |> and_members_of(multiset1),
-      multiset2 = One9.Multiset.delete(multiset1, element)
+      count <- one_of([non_negative_integer(), :all, nil]),
+      multiset2 = case(count, do: (nil -> One9.Multiset.delete(multiset1, element); count -> One9.Multiset.delete(multiset1, element, count)))
     do
-      assert One9.Multiset.count_element(multiset2, element) ===
-             max(One9.Multiset.count_element(multiset1, element) - 1, 0)
+      assert One9.Multiset.size(multiset2) <= One9.Multiset.size(multiset1)
     end
   end
 
@@ -207,7 +233,7 @@ defmodule One9.MultisetTest do
             One9.Multiset.support(multiset1),
             &(
               One9.Multiset.count_element(multiset1, &1) >
-              One9.Multiset.count_element(multiset2, &1)
+                One9.Multiset.count_element(multiset2, &1)
             )
           )
     end
