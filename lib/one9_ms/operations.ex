@@ -626,4 +626,14 @@ defmodule One9.Ms do
   def take(ms, _, 0) do
     {ms, []}
   end
+
+  @doc false
+  def well_formed?(ms) when is_map(ms) do
+    Enum.all?(
+      map_iter(ms),
+      fn {_, count} when is_non_neg_integer(count) ->
+        count > 0
+      end
+    )
+  end
 end

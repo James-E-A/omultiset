@@ -19,6 +19,15 @@ defmodule One9.MultisetTest do
     |> map(&One9.Multiset.new/1)
   end
 
+  property "new passthrough" do
+    check all \
+      multiset1 <- t(term()),
+      multiset2 = One9.Multiset.new(multiset1)
+    do
+      assert One9.Multiset.equals?(multiset2, multiset1)
+    end
+  end
+
   #doc "Generates elements from `other`, and also from finite `enumerable` if possible."
   defp and_members_of(extra, enumerable) do
     if not Enum.empty?(enumerable) do
@@ -186,6 +195,19 @@ defmodule One9.MultisetTest do
     end
   end
 
+  property "put 0 doesn't corrupt struct" do
+    check all \
+      multiset1 <- t(term()),
+      element <- term(),
+      not One9.Multiset.member?(multiset1, element),
+      multiset2 = One9.Multiset.put(multiset1, element, 0)
+    do
+      assert One9.Multiset.equals?(multiset1, multiset2)
+      refute One9.Multiset.member?(multiset2, element)
+      refute element in One9.Multiset.support(multiset2)
+    end
+  end
+
   property "delete basic correctness" do
     check all \
       multiset1 <- t(term()),
@@ -239,7 +261,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "sum works as expected" do
+  property "sum basic correctness" do
     check all \
       multiset1 <- t(term()),
       multiset2 <- t(term()),
@@ -252,6 +274,18 @@ defmodule One9.MultisetTest do
             One9.Multiset.count_element(multiset1, element) +
             One9.Multiset.count_element(multiset2, element)
           )
+    end
+  end
+
+  property "sum self doubles all counts" do
+    check all \
+      multiset1 <- t(term()),
+      multiset2 = One9.Multiset.sum(multiset1, multiset1)
+    do
+      assert One9.Multiset.equals?(
+        multiset2,
+        One9.Multiset.new(:maps.map(fn _, count -> count*2 end, One9.Multiset.to_counts(multiset1)))
+      )
     end
   end
 
@@ -277,7 +311,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "union works as expected" do
+  property "union basic correctness" do
     check all \
       multiset1 <- t(term()),
       multiset2 <- t(term()),
@@ -290,6 +324,15 @@ defmodule One9.MultisetTest do
             One9.Multiset.count_element(multiset1, element),
             One9.Multiset.count_element(multiset2, element)
           )
+    end
+  end
+
+  property "union idempotence" do
+    check all \
+      multiset1 <- t(term()),
+      multiset2 = One9.Multiset.union(multiset1, multiset1)
+    do
+      assert One9.Multiset.equals?(multiset2, multiset1)
     end
   end
 end
