@@ -80,7 +80,7 @@ defmodule One9.MultisetTest do
   property "difference! preserves length" do
     check all \
       multiset2 <- t(term()), # subset of multiset1
-      multiset1 <- map(t(term()), &One9.Multiset.sum(multiset2, &1)),
+      multiset1 <- bind(t(term()), &member_of([One9.Multiset.union(&1, multiset2), One9.Multiset.sum(&1, multiset2)])),
       multiset3 = One9.Multiset.difference!(multiset1, multiset2)
     do
       assert One9.Multiset.size(multiset3) <= One9.Multiset.size(multiset1)
