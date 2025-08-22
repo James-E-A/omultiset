@@ -250,6 +250,10 @@ defmodule One9.Multiset do
         |> elem(1)
       end}
     end
+
+    # forward-looking fast path...
+    # https://github.com/elixir-lang/elixir/blob/v1.19.0-rc.0/lib/elixir/lib/enum.ex#L992-L1002
+    def empty?(multiset), do: {:ok, One9.Multiset.empty?(multiset)}
   end
 
   @doc """

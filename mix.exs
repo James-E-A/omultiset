@@ -4,7 +4,7 @@ defmodule One9.Ms.MixProject do
   def project do
     [
       app: :omultiset,
-      version: "0.3.0",
+      version: "0.4.0-dev",
       elixir: "~> 1.17", # FIXME: check what actual minimum version works
       start_permanent: Mix.env() == :prod,
       package: package(),
