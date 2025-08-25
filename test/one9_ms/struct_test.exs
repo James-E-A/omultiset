@@ -37,6 +37,16 @@ defmodule One9.MultisetTest do
     end
   end
 
+  defp one_of_(datas_and_enumerables) do
+    datas_and_enumerables
+    |> Enum.map(fn
+      %StreamData{} = data -> data
+      enumerable -> if Enum.empty?(enumerable), do: nil, else: StreamData.member_of(enumerable)
+    end)
+    |> Enum.filter()
+    |> one_of()
+  end
+
   defmacrop implies(a, b) do
     quote do: not (unquote(a) and not unquote(b))
   end
@@ -50,7 +60,7 @@ defmodule One9.MultisetTest do
   property "count_element agrees with Enum.count" do
     check all multiset <- t(term()) do
       list = One9.Multiset.to_list(multiset)
-      check all value <- term() do
+      check all value <- one_of_([One9.Multiset.support(multiset), term()]) do
         assert One9.Multiset.count_element(multiset, value) ===
           Enum.count(list, &(&1 === value))
       end
@@ -163,7 +173,8 @@ defmodule One9.MultisetTest do
 
   property "put basic correctness" do
     check all multiset <- t(term()) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :_default]) do
+      check all value <- one_of_([One9.Multiset.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :_default]) do
         result = case count do
           :_default -> One9.Multiset.put(multiset, value)
           count -> One9.Multiset.put(multiset, value, count)
@@ -178,7 +189,8 @@ defmodule One9.MultisetTest do
 
   property "put preserves size" do
     check all multiset <- t(term()) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :_default]) do
+      check all value <- one_of_([One9.Multiset.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :_default]) do
         result = case count do
           :_default -> One9.Multiset.put(multiset, value)
           count -> One9.Multiset.put(multiset, value, count)
@@ -192,7 +204,8 @@ defmodule One9.MultisetTest do
   end
 
   property "put 0 doesn't corrupt struct" do
-    check all multiset <- t(term()), value <- term() do
+    check all multiset <- t(term()),
+              value <- one_of_([One9.Multiset.support(multiset), term()]) do
       result = One9.Multiset.put(multiset, value, 0)
 
       assert One9.Ms.well_formed?(result.counts)
@@ -204,7 +217,8 @@ defmodule One9.MultisetTest do
 
   property "delete basic correctness" do
     check all multiset <- t(term()) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :all, :_default]) do
+      check all value <- one_of_([One9.Multiset.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :all, :_default]) do
         result = case count do
           :_default -> One9.Multiset.delete(multiset, value)
           count -> One9.Multiset.delete(multiset, value, count)
@@ -228,7 +242,8 @@ defmodule One9.MultisetTest do
 
   property "delete preserves size" do
     check all multiset <- t(term()) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :all, :_default]) do
+      check all value <- one_of_([One9.Multiset.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :all, :_default]) do
         result = case count do
           :_default -> One9.Multiset.delete(multiset, value)
           count -> One9.Multiset.delete(multiset, value, count)

@@ -60,6 +60,16 @@ defmodule One9.MsTest do
     end
   end
 
+  defp one_of_(datas_and_enumerables) do
+    datas_and_enumerables
+    |> Enum.map(fn
+      %StreamData{} = data -> data
+      enumerable -> if Enum.empty?(enumerable), do: nil, else: StreamData.member_of(enumerable)
+    end)
+    |> Enum.filter()
+    |> one_of()
+  end
+
   defmacrop implies(a, b) do
     quote do: not (unquote(a) and not unquote(b))
   end
@@ -118,7 +128,8 @@ defmodule One9.MsTest do
 
   property "put default form returns a well-formed multiset whenever input is well-formed" do
     check all ms <- t(term(), strict: false) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :default!]) do
+      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :default!]) do
         result = case count do
           :default! -> One9.Ms.put(ms, value)
           count -> One9.Ms.put(ms, value, count)
@@ -131,7 +142,8 @@ defmodule One9.MsTest do
 
   property "put lax form never prunes entries from input" do
     check all ms <- t(term(), strict: :never), not One9.Ms.well_formed?(ms) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :default!]) do
+      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :default!]) do
         result = case count do
           :default! -> One9.Ms.put(ms, value, :lax)
           count -> One9.Ms.put(ms, value, count, :lax)
@@ -147,7 +159,8 @@ defmodule One9.MsTest do
 
   property "put strict form never returns non-strict" do
     check all ms <- t(term(), strict: true) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :default!]) do
+      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :default!]) do
         result = case count do
           :default! -> One9.Ms.put(ms, value, :strict)
           count -> One9.Ms.put(ms, value, count, :strict)
@@ -170,7 +183,8 @@ defmodule One9.MsTest do
 
   property "delete default form returns a well-formed multiset whenever input is well-formed" do
     check all ms <- t(term(), strict: false) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :all, :default!]) do
+      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :all, :default!]) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value)
           count -> One9.Ms.delete(ms, value, count)
@@ -183,7 +197,8 @@ defmodule One9.MsTest do
 
   property "delete lax form never prunes entries from input" do
     check all ms <- t(term(), strict: :never), not One9.Ms.well_formed?(ms) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :all, :default!]) do
+      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :all, :default!]) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value, :lax)
           count -> One9.Ms.delete(ms, value, count, :lax)
@@ -199,7 +214,8 @@ defmodule One9.MsTest do
 
   property "delete strict form never returns non-strict" do
     check all ms <- t(term(), strict: true) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :all, :default!]) do
+      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+                count <- one_of([non_negative_integer(), :all, :default!]) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value, :strict)
           count -> One9.Ms.delete(ms, value, count, :strict)
