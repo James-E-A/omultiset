@@ -50,10 +50,8 @@ defmodule One9.Multiset do
   def new(map) when is_non_struct_map(map), do: %__MODULE__{counts: Ms.from_counts(map)}
   def new(%__MODULE__{counts: counts}), do: %__MODULE__{counts: counts}
   def new(_) do
-    raise(
-      ArgumentError,
+    raise ArgumentError,
       "explicitly call One9.Multiset.from_counts/1 or One9.Multiset.from_elements/1 instead"
-    )
   end
 
   @doc """
