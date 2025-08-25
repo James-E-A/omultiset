@@ -112,6 +112,24 @@ defmodule One9.MsTest do
       :strict
   end
 
+  property "put 2-argument form returns a well-formed multiset whenever input is well-formed" do
+    check all ms <- t(term(), strict: false) do
+      check all value <- term() do
+        assert implies One9.Ms.well_formed?(ms),
+          One9.Ms.well_formed?(One9.Ms.put(ms, value))
+      end
+    end
+  end
+
+  property "put 3-argument form returns a well-formed multiset whenever input is well-formed" do
+    check all ms <- t(term(), strict: false) do
+      check all value <- term(), count <- non_negative_integer() do
+        assert implies One9.Ms.well_formed?(ms),
+          One9.Ms.well_formed?(One9.Ms.put(ms, value, count))
+      end
+    end
+  end
+
   property "struct interop" do
     check all ms <- t(term()) do
       assert One9.Ms.equals? One9.Ms.counts(One9.Multiset.new(ms)), ms
@@ -122,20 +140,25 @@ defmodule One9.MsTest do
     end
   end
 
-  property "delete returns a well-formed multiset whenever input is well-formed" do
+  property "delete 2-argument form returns a well-formed multiset whenever input is well-formed" do
     check all ms <- t(term(), strict: false) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :all, :_default]) do
-        result = case count do
-          :_default -> One9.Ms.delete(ms, value)
-          count -> One9.Ms.delete(ms, value, count)
-        end
-
-        assert implies One9.Ms.well_formed?(ms), One9.Ms.well_formed?(result)
+      check all value <- term() do
+        assert implies One9.Ms.well_formed?(ms),
+          One9.Ms.well_formed?(One9.Ms.delete(ms, value))
       end
     end
   end
 
-  property "union returns a well-formed multiset whenever both inputs are well-formed" do
+  property "delete 3-argument form returns a well-formed multiset whenever input is well-formed" do
+    check all ms <- t(term(), strict: false) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :all]) do
+        assert implies One9.Ms.well_formed?(ms),
+          One9.Ms.well_formed?(One9.Ms.delete(ms, value, count))
+      end
+    end
+  end
+
+  property "union 2-argument form returns a well-formed multiset whenever both inputs are well-formed" do
     check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
       result = One9.Ms.union(ms1, ms2)
 

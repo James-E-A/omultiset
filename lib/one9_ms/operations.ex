@@ -112,19 +112,30 @@ defmodule One9.Ms do
   end
 
   @doc """
-  Delete copies of an element from a multiset.
+  Delete up to the given number of copies of an element from a multiset.
 
-  Returns a well-formed multiset whenever input is well-formed.
+  The 3-argument and 2-argument forms return a well-formed multiset whenever input is
+  well-formed.
+
+      iex> %{dog: 1, cat: 1}
+      ...> |> One9.Ms.delete(:dog, 1000000)
+      %{cat: 1}
   """
   @spec delete(t(e), term) :: t(e) when e: term()
   @spec delete(t_lax(e), term) :: t_lax(e) when e: term()
   @spec delete(t(e), term, non_neg_integer | :all) :: t(e) when e: term()
   @spec delete(t_lax(e), term, non_neg_integer | :all) :: t_lax(e) when e: term()
-  def delete(ms, element, count \\ :all)
+  def delete(ms, element), do: delete(ms, element, :all, :strict)
+  def delete(ms, element, count) when is_integer(count) or count === :all, do: delete(ms, element, count, :strict)
+  def delete(ms, element, :strict), do: delete(ms, element, :all, :strict)
+  def delete(ms, element, :lax), do: delete(ms, element, :all, :lax)
+  def delete(ms, element, count, strict)
 
-  def delete(ms, element, :all), do: Map.delete(ms, element)
+  def delete(ms, element, :all, :strict), do: Map.delete(ms, element)
 
-  def delete(ms, element, count) when is_pos_integer(count) do
+  def delete(ms, element, :all, :lax), do: Map.replace(ms, element, 0)
+
+  def delete(ms, element, count, :strict) when is_pos_integer(count) do
     case ms do
       %{^element => n1} ->
         n2 = n1 - count
@@ -140,14 +151,31 @@ defmodule One9.Ms do
     end
   end
 
-  def delete(ms, _, 0), do: ms
+  def delete(ms, _, 0, :strict), do: ms
+
+  def delete(ms, element, count, :lax) when is_non_neg_integer(count) do
+    case ms do
+      %{^element => n1} ->
+        n2 = n1 - count
+
+        if n2 > 0 do
+          %{ms | element => n2}
+        else
+          %{ms | element => 0}
+        end
+
+      %{} ->
+        ms
+    end
+  end
 
   @doc """
   Return the first multiset, less the elements in the second.
 
   Calculations are done soft aka "clamping".
 
-  Returns a well-formed multiset whenever the first argument is well-formed.
+  The 2-argument form returns a well-formed multiset whenever the first argument is
+  well-formed.
 
       iex> %{"dog" => 1, "cat" => 10}
       ...> |> One9.Ms.difference(%{"dog" => 3, "cat" => 3})
@@ -157,7 +185,9 @@ defmodule One9.Ms do
   """
   @spec difference(t(e), t_lax) :: t(e) when e: term()
   @spec difference(t_lax(e), t_lax) :: t_lax(e) when e: term()
-  def difference(ms1, ms2) do
+  def difference(ms1, ms2, strict \\ :strict)
+
+  def difference(ms1, ms2, :strict) do
     # minimum OTP 24.0
     :maps.filtermap(
       fn
@@ -166,10 +196,33 @@ defmodule One9.Ms do
             %{^element => n2} ->
               n3 = n1 - n2
 
-              if n3 <= 0 do
-                false
-              else
+              if n3 > 0 do
                 {true, n3}
+              else
+                false
+              end
+
+            %{} ->
+              true
+          end
+      end,
+      ms1
+    )
+  end
+
+  def difference(ms1, ms2, :lax) do
+    # minimum OTP 24.0
+    :maps.filtermap(
+      fn
+        element, n1 ->
+          case ms2 do
+            %{^element => n2} ->
+              n3 = n1 - n2
+
+              if n3 > 0 do
+                {true, n3}
+              else
+                {true, 0}
               end
 
             %{} ->
@@ -185,7 +238,8 @@ defmodule One9.Ms do
 
   Raises `KeyError` if the second element is not a subset of the first.
 
-  Returns a well-formed multiset whenever the first argument is well-formed.
+  The 2-argument form returns a well-formed multiset whenever the first argument is
+  well-formed.
 
       iex> %{"dog" => 1, "cat" => 10}
       ...> |> One9.Ms.difference!(%{"dog" => 3, "cat" => 3})
@@ -195,23 +249,40 @@ defmodule One9.Ms do
   """
   @spec difference!(t(e), t_lax(e)) :: t(e) when e: term()
   @spec difference!(t_lax(e), t_lax(e)) :: t_lax(e) when e: term()
-  def difference!(ms1, ms2) do
+  def difference!(ms1, ms2, strict \\ :strict)
+
+  def difference!(ms1, ms2, :strict) do
     :maps.fold(
-      fn
-        element, n2, acc ->
-          case acc do
-            %{^element => n1} when n1 >= n2 ->
-              n3 = n1 - n2
+      fn element, n2, acc ->
+        case acc do
+          %{^element => n1} when n1 >= n2 ->
+            n3 = n1 - n2
 
-              if n3 > 0 do
-                Map.put(acc, element, n3)
-              else
-                Map.delete(acc, element)
-              end
+            if n3 > 0 do
+              Map.put(acc, element, n3)
+            else
+              Map.delete(acc, element)
+            end
 
-            %{} ->
-              raise KeyError, term: ms1, key: {element, n2}
-          end
+          %{} ->
+            raise KeyError, term: ms1, key: {element, n2}
+        end
+      end,
+      ms1,
+      ms2
+    )
+  end
+
+  def difference!(ms1, ms2, :lax) do
+    :maps.fold(
+      fn element, n2, acc ->
+        case acc do
+          %{^element => n1} when n1 >= n2 ->
+            Map.put(acc, element, n1 - n2)
+
+          %{} ->
+            raise KeyError, term: ms1, key: {element, n2}
+        end
       end,
       ms1,
       ms2
@@ -331,20 +402,39 @@ defmodule One9.Ms do
   end
 
   @doc """
-  Add additional copies (by default) of the element into the multiset.
+  Add additional copies (by default, 1 copy) of the element into the multiset.
 
-  Return value is well-formed whenever the input is.
+  The 2-argument and 3-argument forms' return value is well-formed whenever the input is.
 
   ## Examples
 
-      iex>
+      iex> %{dog: 1}
+      ...> |> One9.Ms.put(:dog, 100)
+      ...> |> One9.Ms.put(:cat, 9)
+      ...> |> One9.Ms.put(:unicorn, 0)
+      %{dog: 101, cat: 9}
+
+      iex> %{dog: 1}
+      ...> |> One9.Ms.put(:unicorn, 0, :lax)
+      %{dog: 1, unicorn: 0}
   """
   @spec put(t(e1), e2, pos_integer) :: t(e1 | e2) when e1: term, e2: term
   @spec put(t_lax(e1), e2, pos_integer) :: t_lax(e1 | e2) when e1: term, e2: term
-  def put(ms, element, count \\ 1)
-  def put(ms, element, count) when is_pos_integer(count),
-    do: sum(ms, %{element => count})
-  def put(ms, _, 0), do: ms
+  def put(ms, element), do: put(ms, element, 1, :strict)
+  def put(ms, element, count) when is_integer(count), do: put(ms, element, count, :strict)
+  def put(ms, element, :strict), do: put(ms, element, 1, :strict)
+  def put(ms, element, :lax), do: put(ms, element, 1, :lax)
+  def put(ms, element, count, strict)
+
+  def put(ms, element, count, :strict) when is_pos_integer(count) do
+    Map.update(ms, element, count, &(&1 + count))
+  end
+
+  def put(ms, _, 0, :strict), do: ms
+
+  def put(ms, element, count, :lax) when is_non_neg_integer(count) do
+    Map.update(ms, element, count, &(&1 + count))
+  end
 
   @doc """
   Determine whether the first multiset is a (non-strict) subset of the second.
