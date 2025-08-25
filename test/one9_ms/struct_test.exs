@@ -31,6 +31,9 @@ defmodule One9.MultisetTest do
           {multiset1, multiset2} ->
             {One9.Multiset.sum(multiset1, multiset2), multiset2}
         end)
+
+      {_, options} ->
+        raise RuntimeError, "unsupported options: #{inspect Keyword.keys(options)}"
     end
   end
 
