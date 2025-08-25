@@ -12,327 +12,297 @@ defmodule One9.MultisetTest do
 
   def t(value) do
     # don't bother stress-testing with lax inputs; that's done in a separate test
-    one_of([
-      list_of(value),
-      One9.MsTest.t(value, strict: true),
-    ])
+    One9.MsTest.t(value, strict: true)
     |> map(&One9.Multiset.new/1)
   end
 
+  defp t_with_subset(value, options \\ []) do
+    case Keyword.pop(options, :strict, false) do
+      {false, []} ->
+        tuple({t(value), t(value)})
+        |> map(fn
+          {multiset1, multiset2} ->
+            {One9.Multiset.union(multiset1, multiset2), multiset2}
+        end)
+
+      {true, []} ->
+        tuple({nonempty(t(value)), t(value)})
+        |> map(fn
+          {multiset1, multiset2} ->
+            {One9.Multiset.sum(multiset1, multiset2), multiset2}
+        end)
+    end
+  end
+
+  defmacrop implies(a, b) do
+    quote do: not (unquote(a) and not unquote(b))
+  end
+
   property "new passthrough" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 = One9.Multiset.new(multiset1)
-    do
-      assert One9.Multiset.equals?(multiset2, multiset1)
+    check all multiset <- t(term()) do
+      assert One9.Multiset.equals?(One9.Multiset.new(multiset), multiset)
     end
-  end
-
-  #doc "Generates elements from `other`, and also from finite `enumerable` if possible."
-  defp and_members_of(extra, enumerable) do
-    if not Enum.empty?(enumerable) do
-      StreamData.one_of([StreamData.member_of(enumerable), extra])
-    else
-      extra
-    end
-  end
-
-  defp has_uniqness?(enumerable, n \\ 2) do
-    Enum.reduce_while(
-      enumerable,
-      MapSet.new(),
-      &if(MapSet.size(&2) >= n, do: {:halt, &2}, else: {:cont, MapSet.put(&2, &1)})
-    )
-    |> MapSet.size()
-    |> Kernel.>=(n)
   end
 
   property "count_element agrees with Enum.count" do
-    check all \
-      multiset <- t(term()),
-      elements = One9.Multiset.to_stream(multiset),
-      element <- term() |> and_members_of(multiset)
-    do
-      assert One9.Multiset.count_element(multiset, element) === \
-             Enum.count(elements, &(&1 === element))
-    end
-
-    check all \
-      elements <- list_of(term()),
-      multiset = One9.Multiset.from_elements(elements),
-      element <- term() |> and_members_of(elements)
-    do
-      assert One9.Multiset.count_element(multiset, element) === \
-             Enum.count(elements, &(&1 === element))
+    check all multiset <- t(term()) do
+      list = One9.Multiset.to_list(multiset)
+      check all value <- term() do
+        assert One9.Multiset.count_element(multiset, value) ===
+          Enum.count(list, &(&1 === value))
+      end
     end
   end
 
   property "difference preserves length" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 <- t(term()),
-      multiset3 = One9.Multiset.difference(multiset1, multiset2)
-    do
-      assert One9.Multiset.size(multiset3) <= One9.Multiset.size(multiset1)
+    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+      assert One9.Multiset.size(One9.Multiset.difference(multiset1, multiset2)) <=
+        One9.Multiset.size(multiset1)
     end
   end
 
   property "difference! preserves length" do
-    check all \
-      multiset2 <- t(term()), # subset of multiset1
-      multiset1 <- bind(t(term()), &member_of([One9.Multiset.union(&1, multiset2), One9.Multiset.sum(&1, multiset2)])),
-      multiset3 = One9.Multiset.difference!(multiset1, multiset2)
-    do
-      assert One9.Multiset.size(multiset3) <= One9.Multiset.size(multiset1)
+    check all {multiset1, multiset2} <- t_with_subset(term()) do
+      result = One9.Multiset.difference!(multiset1, multiset2)
+      assert One9.Multiset.size(result) <= One9.Multiset.size(multiset1)
     end
   end
 
   property "empty works as expected" do
     check all multiset <- t(term()) do
-      assert \
-        One9.Multiset.empty?(multiset) ===
-          (One9.Multiset.size(multiset) === 0)
+      assert One9.Multiset.empty?(multiset) === (One9.Multiset.size(multiset) === 0)
     end
   end
 
   property "equals? invariant under ordering" do
-    check all \
-      list1 <- list_of(term(), min_length: 2) |> filter(&has_uniqness?/1),
-      multiset1 = One9.Multiset.new(list1),
-      list2 <- shuffle(list1),
-      list1 !== list2,
-      multiset2 = One9.Multiset.new(list2)
-    do
-      assert list1 !== list2
-      assert One9.Multiset.equals?(multiset1, multiset2)
-    end
-  end
-
-  property "Enumerable member? from_elements" do
-    check all \
-      elements <- list_of(term()),
-      multiset = One9.Multiset.from_elements(elements),
-      element <- term() |> and_members_of(elements)
-    do
-      assert \
-        Enum.member?(multiset, element) ===
-          Enum.member?(elements, element)
-    end
-  end
-
-  property "from_elements round-trip" do
-    check all \
-      elements <- list_of(term()),
-      multiset = One9.Multiset.from_elements(elements)
-    do
-      assert \
-        Enum.sort(One9.Multiset.to_list(multiset)) ===
-          Enum.sort(elements)
-
-      assert \
-        Enum.sort(Enum.to_list(multiset)) ===
-          Enum.sort(elements)
-    end
-  end
-
-  property "to_list preserves slice" do
-    check all \
-      multiset <- t(term()),
-      elements = One9.Multiset.to_list(multiset),
-      size = length(elements),
-      start_index <- member_of(0..size),
-      amount <- member_of(0..(size - start_index))
-    do
-      assert Enum.slice(multiset, start_index, amount) === \
-             Enum.slice(elements, start_index, amount)
-    end
-  end
-
-  property "intersection preserves size" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 <- t(term()),
-      multiset3 = One9.Multiset.intersection(multiset1, multiset2)
-    do
-      assert One9.Multiset.size(multiset3) <= min(
-        One9.Multiset.size(multiset1),
-        One9.Multiset.size(multiset2)
+    check all list <- list_of(term()) do
+      assert One9.Multiset.equals?(
+        One9.Multiset.new(list),
+        One9.Multiset.new(Enum.shuffle(list))
       )
     end
   end
 
+  property "Enumerable member? from_elements" do
+    check all list <- list_of(term()) do
+      result = One9.Multiset.from_elements(list)
+
+      check all element <- term() do
+        assert Enum.member?(result, element) === Enum.member?(list, element)
+      end
+    end
+  end
+
+  property "from_elements round-trip" do
+    check all list <- list_of(term()) do
+      result = One9.Multiset.to_list(One9.Multiset.from_elements(list))
+      assert Enum.sort(result) === Enum.sort(list)
+    end
+  end
+
+  @empty_range Range.new(0, -1, 1)
+  defp range_within(enumerable) do
+    size = Enum.count(enumerable)
+
+    if size > 0 do
+      last_ = size - 1
+      integer(0..last_)
+      |> bind(fn first_ ->
+        tuple({constant(first_), integer(first_..last_), positive_integer()})
+      end)
+      |> map(fn {first, last, step} ->
+          Range.new(first, last, step)
+      end)
+    else
+      constant(@empty_range)
+    end
+  end
+
+  property "to_list preserves slice" do
+    check all multiset <- t(term()) do
+      check all range <- range_within(multiset) do
+        assert Enum.slice(multiset, range) ===
+          Enum.slice(One9.Multiset.to_list(multiset), range)
+      end
+    end
+  end
+
+  property "intersection commutative" do
+    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+      assert One9.Multiset.equals? One9.Multiset.intersection(multiset1, multiset2),
+        One9.Multiset.intersection(multiset2, multiset1)
+    end
+  end
+
+  property "intersection idempotence" do
+    check all multiset <- t(term()) do
+      assert One9.Multiset.equals? One9.Multiset.intersection(multiset, multiset),
+        multiset
+    end
+  end
+
+  property "intersection preserves size" do
+    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+      result = One9.Multiset.intersection(multiset1, multiset2)
+
+      assert One9.Multiset.size(result) <= One9.Multiset.size(multiset1)
+      assert One9.Multiset.size(result) <= One9.Multiset.size(multiset2)
+    end
+  end
+
   property "intersection produces subsets" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 <- t(term()),
-      multiset3 = One9.Multiset.intersection(multiset1, multiset2)
-    do
-      assert One9.Multiset.subset?(multiset3, multiset1)
-      assert One9.Multiset.subset?(multiset3, multiset2)
+    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+      result = One9.Multiset.intersection(multiset1, multiset2)
+
+      assert One9.Multiset.subset?(result, multiset1)
+      assert One9.Multiset.subset?(result, multiset2)
     end
   end
 
   property "put basic correctness" do
-    check all \
-      multiset1 <- t(term()),
-      element <- term() |> and_members_of(multiset1),
-      count <- non_negative_integer(),
-      multiset2 = One9.Multiset.put(multiset1, element, count)
-    do
-      assert One9.Multiset.count_element(multiset2, element) ===
-             One9.Multiset.count_element(multiset1, element) + count
+    check all multiset <- t(term()) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :_default]) do
+        result = case count do
+          :_default -> One9.Multiset.put(multiset, value)
+          count -> One9.Multiset.put(multiset, value, count)
+        end
+
+        assert One9.Multiset.count_element(result, value) ===
+          One9.Multiset.count_element(multiset, value) +
+            case(count, do: (:_default -> 1; count -> count))
+      end
     end
   end
 
   property "put preserves size" do
-    check all \
-      multiset1 <- t(term()),
-      element <- term() |> and_members_of(multiset1),
-      count <- non_negative_integer(),
-      multiset2 = One9.Multiset.put(multiset1, element, count)
-    do
-      One9.Multiset.size(multiset2) >= One9.Multiset.size(multiset1)
+    check all multiset <- t(term()) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :_default]) do
+        result = case count do
+          :_default -> One9.Multiset.put(multiset, value)
+          count -> One9.Multiset.put(multiset, value, count)
+        end
+
+        assert One9.Multiset.size(result) >= One9.Multiset.size(multiset)
+        assert implies count > 0,
+          One9.Multiset.size(result) > One9.Multiset.size(multiset)
+      end
     end
   end
 
   property "put 0 doesn't corrupt struct" do
-    check all \
-      multiset1 <- t(term()),
-      element <- term(),
-      not One9.Multiset.member?(multiset1, element),
-      multiset2 = One9.Multiset.put(multiset1, element, 0)
-    do
-      assert One9.Multiset.equals?(multiset1, multiset2)
-      refute One9.Multiset.member?(multiset2, element)
-      refute element in One9.Multiset.support(multiset2)
+    check all multiset <- t(term()), value <- term() do
+      result = One9.Multiset.put(multiset, value, 0)
+
+      assert One9.Ms.well_formed?(result.counts)
+      assert One9.Multiset.equals? result, multiset
+      assert implies One9.Multiset.member?(result, value),
+        One9.Multiset.member?(multiset, value)
     end
   end
 
   property "delete basic correctness" do
-    check all \
-      multiset1 <- t(term()),
-      element <- term() |> and_members_of(multiset1),
-      count <- one_of([non_negative_integer(), constant(:all), constant(nil)]),
-      multiset2 = case(count, do: (nil -> One9.Multiset.delete(multiset1, element); count -> One9.Multiset.delete(multiset1, element, count)))
-    do
-      case count do
-        nil ->
-          assert \
-            One9.Multiset.count_element(multiset2, element) ===
-              max(One9.Multiset.count_element(multiset1, element) - 1, 0)
+    check all multiset <- t(term()) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :all, :_default]) do
+        result = case count do
+          :_default -> One9.Multiset.delete(multiset, value)
+          count -> One9.Multiset.delete(multiset, value, count)
+        end
 
-        count when is_integer(count) ->
-          assert \
-            One9.Multiset.count_element(multiset2, element) ===
-              max(One9.Multiset.count_element(multiset1, element) - count, 0)
+        case count do
+          :all ->
+            assert One9.Multiset.count_element(result, value) === 0
 
-        :all ->
-          assert \
-            One9.Multiset.count_element(multiset2, element) === 0
+          :_default ->
+            assert One9.Multiset.count_element(result, value) ===
+              max(One9.Multiset.count_element(multiset, value) - 1, 0)
+
+          count ->
+            assert One9.Multiset.count_element(result, value) ===
+              max(One9.Multiset.count_element(multiset, value) - count, 0)
+        end
       end
     end
   end
 
   property "delete preserves size" do
-    check all \
-      multiset1 <- t(term()),
-      element <- term() |> and_members_of(multiset1),
-      count <- one_of([non_negative_integer(), :all, nil]),
-      multiset2 = case(count, do: (nil -> One9.Multiset.delete(multiset1, element); count -> One9.Multiset.delete(multiset1, element, count)))
-    do
-      assert One9.Multiset.size(multiset2) <= One9.Multiset.size(multiset1)
+    check all multiset <- t(term()) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :all, :_default]) do
+        result = case count do
+          :_default -> One9.Multiset.delete(multiset, value)
+          count -> One9.Multiset.delete(multiset, value, count)
+        end
+
+        assert One9.Multiset.size(result) <= One9.Multiset.size(multiset)
+      end
     end
   end
 
   property "subset? works as expected" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 <- t(term())
-    do
-      assert \
-        One9.Multiset.subset?(multiset1, multiset2) ===
-          not Enum.any?(
-            One9.Multiset.support(multiset1),
-            &(
-              One9.Multiset.count_element(multiset1, &1) >
-                One9.Multiset.count_element(multiset2, &1)
-            )
-          )
+    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+      assert One9.Multiset.subset?(multiset1, multiset2) ===
+        Enum.all?(One9.Multiset.support(multiset1), fn value ->
+          One9.Multiset.count_element(multiset1, value) <=
+            One9.Multiset.count_element(multiset2, value)
+        end)
     end
   end
 
   property "sum basic correctness" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 <- t(term()),
-      multiset3 = One9.Multiset.sum(multiset1, multiset2),
-      element <- Enum.reduce([multiset1, multiset2, multiset3], term(), &and_members_of(&2, &1))
-    do
-      assert \
-        One9.Multiset.count_element(multiset3, element) ===
-          (
-            One9.Multiset.count_element(multiset1, element) +
+    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+      result = One9.Multiset.sum(multiset1, multiset2)
+      check all element <- term() do
+        assert One9.Multiset.count_element(result, element) ===
+          One9.Multiset.count_element(multiset1, element) +
             One9.Multiset.count_element(multiset2, element)
-          )
+      end
     end
   end
 
   property "sum self doubles all counts" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 = One9.Multiset.sum(multiset1, multiset1)
-    do
-      assert One9.Multiset.equals?(
-        multiset2,
-        One9.Multiset.new(:maps.map(fn _, count -> count*2 end, One9.Multiset.to_counts(multiset1)))
-      )
+    check all multiset <- t(term()) do
+      assert One9.Multiset.equals? One9.Multiset.sum(multiset, multiset),
+        One9.Multiset.new(:maps.map(fn _, count -> count*2 end, multiset.counts))
     end
   end
 
   property "support agrees with MapSet.new" do
-    check all \
-      multiset <- t(term()),
-      support = MapSet.new(multiset)
-    do
-      assert Enum.sort(One9.Multiset.support(multiset)) === Enum.sort(support)
+    check all multiset <- t(term()) do
+      assert Enum.sort(One9.Multiset.support(multiset)) ===
+        Enum.sort(MapSet.new(multiset))
     end
   end
 
   property "sum agrees with List._concat" do
-    check all \
-      list1 <- list_of(term()),
-      multiset1 = One9.Multiset.new(list1),
-      list2 <- list_of(term()),
-      list3 = list1 ++ list2,
-      multiset2 = One9.Multiset.new(list2),
-      multiset3 = One9.Multiset.new(list3)
-    do
-      assert One9.Multiset.equals?(multiset3, One9.Multiset.sum(multiset1, multiset2))
+    check all list1 <- list_of(term()), list2 <- list_of(term()) do
+      assert One9.Multiset.equals? \
+        One9.Multiset.sum(One9.Multiset.new(list1), One9.Multiset.new(list2)),
+        One9.Multiset.new(list1 ++ list2)
     end
   end
 
   property "union basic correctness" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 <- t(term()),
-      multiset3 = One9.Multiset.union(multiset1, multiset2),
-      element <- Enum.reduce([multiset1, multiset2, multiset3], term(), &and_members_of(&2, &1))
-    do
-      assert \
-        One9.Multiset.count_element(multiset3, element) ===
+    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+      result = One9.Multiset.union(multiset1, multiset2)
+      check all element <- term() do
+        assert One9.Multiset.count_element(result, element) ===
           max(
             One9.Multiset.count_element(multiset1, element),
             One9.Multiset.count_element(multiset2, element)
           )
+      end
+    end
+  end
+
+  property "union commutative" do
+    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+      assert One9.Multiset.equals? One9.Multiset.union(multiset1, multiset2),
+        One9.Multiset.union(multiset2, multiset1)
     end
   end
 
   property "union idempotence" do
-    check all \
-      multiset1 <- t(term()),
-      multiset2 = One9.Multiset.union(multiset1, multiset1)
-    do
-      assert One9.Multiset.equals?(multiset2, multiset1)
+    check all multiset <- t(term()) do
+      assert One9.Multiset.equals? One9.Multiset.union(multiset, multiset), multiset
     end
   end
 end

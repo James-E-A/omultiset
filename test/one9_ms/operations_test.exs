@@ -17,6 +17,16 @@ defmodule One9.MsTest do
     end
   end
 
+  def t_and_subset(value, options \\ []) do
+    tuple({t(value, options), t(value, options)})
+    |> map(fn {ms1, ms2} -> {One9.Ms.union(ms1, ms2), ms2} end)
+  end
+
+  def t_and_strict_subset(value, options \\ []) do
+    tuple({nonempty(t(value, options)), t(value, options)})
+    |> map(fn {ms1, ms2} -> {One9.Ms.sum(ms1, ms2), ms2} end)
+  end
+
   def t0(value) do
     one_of([
       t(value, strict: false),
@@ -30,9 +40,9 @@ defmodule One9.MsTest do
       {true, []} ->
         one_of([
           list_of(value),
-          mapset_of(value), # arbitrary enumerable struct
+          StreamData.mapset_of(value), # arbitrary enumerable struct
           One9.MultisetTest.t(value), # arbitrary enumerable struct
-          map(list_of(value), &Stream.unfold(&1, fn [x | acc] -> {x, acc}; [] -> nil end)), # arbitrary enumerable struct
+          StreamData.map(list_of(value), &Stream.unfold(&1, fn [x | acc] -> {x, acc}; [] -> nil end)), # arbitrary enumerable struct
         ])
 
       {false, []} ->
@@ -46,71 +56,91 @@ defmodule One9.MsTest do
     end
   end
 
+  defmacrop implies(a, b) do
+    quote do: not (unquote(a) and not unquote(b))
+  end
+
   test "counts default" do
-    assert One9.Ms.equals?(One9.Ms.counts(), %{})
+    result = One9.Ms.counts()
+
+    assert result === %{}
+    assert One9.Ms.equals? result, %{}, :strict
   end
 
   property "counts always returns a well-formed multiset" do
-    check all \
-      ms <- map(enumerable(term(), finite: true), &One9.Ms.counts/1)
-    do
-      assert One9.Ms.well_formed?(ms)
+    check all enumerable <- enumerable(term(), finite: true) do
+      result = One9.Ms.counts(enumerable)
+
+      assert One9.Ms.well_formed?(result)
+      assert Enum.all?(result, fn {_, n} when is_integer(n) -> n > 0; _ -> false end)
     end
   end
 
   property "from_counts always returns a well-formed multiset" do
     check all \
-      ms <- map(t0(term()), &One9.Ms.from_counts/1)
+      counts <- t0(term())
     do
-      assert One9.Ms.well_formed?(ms)
+      result = One9.Ms.from_counts(counts)
+
+      assert One9.Ms.well_formed?(result)
+      assert Enum.all?(result, fn {_, n} when is_integer(n) -> n > 0; _ -> false end)
     end
   end
 
   property "well_formed basic correctness" do
+    assert One9.Ms.well_formed?(%{})
+    refute One9.Ms.well_formed?(%{42 => 0})
+
     check all \
       ms <- t(term(), strict: false)
     do
-      if 0 in Map.values(ms) do
-        refute One9.Ms.well_formed?(ms)
-      else
-        assert One9.Ms.well_formed?(ms)
-      end
+      assert One9.Ms.well_formed?(ms) === (0 not in Map.values(ms))
     end
   end
 
   test "from_counts default" do
-    assert One9.Ms.equals?(
-      One9.Ms.from_counts(),
-      %{},
-      :strict
-    )
+    result = One9.Ms.from_counts()
+
+    assert result === %{}
+    assert One9.Ms.equals? result, %{}, :strict
   end
 
   test "put default" do
-    assert One9.Ms.equals?(
+    assert One9.Ms.equals? \
       %{"dog" => 3, "cat" => 1} |> One9.Ms.put("cat"),
       %{"dog" => 3, "cat" => 2},
       :strict
-    )
   end
 
   property "struct interop" do
-    check all \
-      ms <- t(term()),
-      multiset = One9.Multiset.new(ms)
-    do
-      assert One9.Ms.equals?(One9.Ms.counts(multiset), ms)
+    check all ms <- t(term()) do
+      assert One9.Ms.equals? One9.Ms.counts(One9.Multiset.new(ms)), ms
+    end
+
+    check all ms <- t(term(), strict: true) do
+      assert One9.Ms.equals? One9.Ms.counts(One9.Multiset.new(ms)), ms, :strict
     end
   end
 
   property "delete returns a well-formed multiset whenever input is well-formed" do
-    check all \
-      ms1 <- t(term(), strict: true),
-      element <- if(One9.Ms.empty?(ms1), do: term(), else: one_of([term(), member_of(Map.keys(ms1))])),
-      count <- one_of([non_negative_integer(), constant(:all), constant(nil)]),
-      ms2 = case(count, do: (nil -> One9.Ms.delete(ms1, element); count -> One9.Ms.delete(ms1, element, count)))
-    do
-      assert One9.Ms.well_formed?(ms2)
+    check all ms <- t(term(), strict: false) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :all, :_default]) do
+        result = case count do
+          :_default -> One9.Ms.delete(ms, value)
+          count -> One9.Ms.delete(ms, value, count)
+        end
+
+        assert implies One9.Ms.well_formed?(ms), One9.Ms.well_formed?(result)
+      end
+    end
+  end
+
+  property "union returns a well-formed multiset whenever both inputs are well-formed" do
+    check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
+      result = One9.Ms.union(ms1, ms2)
+
+      assert implies One9.Ms.well_formed?(ms1) and One9.Ms.well_formed?(ms2),
+        One9.Ms.well_formed?(result)
     end
   end
 end
