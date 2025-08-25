@@ -5,7 +5,7 @@ defmodule One9.MultisetTest do
   doctest One9.Multiset
 
   test "inspect" do
-    assert inspect(One9.Multiset.new()) === "One9.Multiset.new()"
+    assert inspect(One9.Multiset.new()) === "One9.Multiset.new([])"
     assert inspect(One9.Multiset.new([1, 2, 3, 3, 3])) === "One9.Multiset.new([1, 2, 3, 3, 3])"
     assert inspect(One9.Multiset.new(%{42 => 10**100})) === "One9.Multiset.new(%{42 => #{10**100}})"
   end

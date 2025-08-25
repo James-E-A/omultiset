@@ -44,7 +44,7 @@ defmodule One9.Multiset do
       ** (ArgumentError) explicitly call One9.Multiset.from_counts/1 or One9.Multiset.from_elements/1 instead
   """
   @spec new(list(e) | Ms.t(e) | MapSet.t(e) | t(e)) :: t(e) when e: term
-  def new(arg \\ MapSet.new([]))
+  def new(arg \\ [])
   def new(list) when is_list(list), do: %__MODULE__{counts: Ms.counts(list)}
   def new(%MapSet{} = set), do: %__MODULE__{counts: Ms.counts(set)}
   def new(map) when is_non_struct_map(map), do: %__MODULE__{counts: Ms.from_counts(map)}
@@ -191,28 +191,47 @@ defmodule One9.Multiset do
 
   defimpl Inspect, for: One9.Multiset do
     def inspect(multiset, opts) do
-      size = One9.Multiset.size(multiset)
+      if :math.floor(:math.sqrt(One9.Multiset.size(multiset))) <=
+        One9.Multiset.support_count(multiset)
+      do
+        inspect_as_list(multiset, opts)
+      else
+        inspect_as_counts(multiset, opts)
+      end
+    end
 
-      cond do
-        size === 0 ->
-          "One9.Multiset.new()"
+    defp inspect_as_counts(multiset, opts) do
+      Inspect.Algebra.concat([
+        "One9.Multiset.new(",
+        Inspect.Map.inspect(multiset.counts, opts),
+        ")"
+      ])
+    end
 
-        :math.floor(:math.sqrt(size)) > One9.Multiset.support_count(multiset) ->
-          Inspect.Algebra.concat([
-            "One9.Multiset.new(",
-            Inspect.Map.inspect(One9.Multiset.to_counts(multiset), opts),
-            ")"
-          ])
+    if Kernel.function_exported?(Inspect.Algebra, :to_doc_with_opts, 2) do
+      defp inspect_as_list(multiset, opts) do
+        # https://github.com/elixir-lang/elixir/blob/v1.19.0-rc.0/lib/elixir/lib/map_set.ex#L447-L454
+        {doc, %{limit: limit}} =
+          multiset
+          |> One9.Multiset.to_list()
+          |> Inspect.Algebra.to_doc_with_opts(%{opts | charlists: :as_lists})
 
-        true ->
-          # https://github.com/elixir-lang/elixir/blob/v1.18.2/lib/elixir/lib/map_set.ex#L444
-          opts = %Inspect.Opts{opts | charlists: :as_lists}
+        {Inspect.Algebra.concat([
+          "One9.Multiset.new(",
+          doc,
+          ")"
+        ]), %{opts | limit: limit}}
+      end
+    else
+      defp inspect_as_list(multiset, opts) do
+        # https://github.com/elixir-lang/elixir/blob/v1.18.4/lib/elixir/lib/map_set.ex#L444-L447
+        opts = %Inspect.Opts{opts | charlists: :as_lists}
 
-          Inspect.Algebra.concat([
-            "One9.Multiset.new(",
-            Inspect.List.inspect(One9.Multiset.to_list(multiset), opts),
-            ")"
-          ])
+        Inspect.Algebra.concat([
+          "One9.Multiset.new(",
+          Inspect.List.inspect(One9.Multiset.to_list(multiset), opts),
+          ")"
+        ])
       end
     end
   end
