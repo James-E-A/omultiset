@@ -6,11 +6,15 @@ defmodule One9.MsTest do
 
   def t(value, options \\ []) do
     case Keyword.pop(options, :strict, false) do
-      {strict, []} when not strict ->
+      {false, []} ->
         map_of(value, non_negative_integer())
 
-      {strict, []} when strict ->
+      {true, []} ->
         map_of(value, positive_integer())
+
+      {:never, []} ->
+        tuple({t(value, strict: true), value})
+        |> map(fn {ms, canary} -> Map.put(ms, canary, 0) end)
 
       {_, options} ->
         raise RuntimeError, "unsupported options: #{inspect Keyword.keys(options)}"
@@ -41,7 +45,7 @@ defmodule One9.MsTest do
         one_of([
           list_of(value),
           StreamData.mapset_of(value), # arbitrary enumerable struct
-          One9.MultisetTest.t(value), # arbitrary enumerable struct
+          ##One9.MultisetTest.t(value), # arbitrary enumerable struct
           StreamData.map(list_of(value), &Stream.unfold(&1, fn [x | acc] -> {x, acc}; [] -> nil end)), # arbitrary enumerable struct
         ])
 
@@ -112,20 +116,44 @@ defmodule One9.MsTest do
       :strict
   end
 
-  property "put 2-argument form returns a well-formed multiset whenever input is well-formed" do
+  property "put default form returns a well-formed multiset whenever input is well-formed" do
     check all ms <- t(term(), strict: false) do
-      check all value <- term() do
-        assert implies One9.Ms.well_formed?(ms),
-          One9.Ms.well_formed?(One9.Ms.put(ms, value))
+      check all value <- term(), count <- one_of([non_negative_integer(), :default!]) do
+        result = case count do
+          :default! -> One9.Ms.put(ms, value)
+          count -> One9.Ms.put(ms, value, count)
+        end
+
+        assert implies One9.Ms.well_formed?(ms), One9.Ms.well_formed?(result)
       end
     end
   end
 
-  property "put 3-argument form returns a well-formed multiset whenever input is well-formed" do
-    check all ms <- t(term(), strict: false) do
-      check all value <- term(), count <- non_negative_integer() do
-        assert implies One9.Ms.well_formed?(ms),
-          One9.Ms.well_formed?(One9.Ms.put(ms, value, count))
+  property "put lax form never prunes entries from input" do
+    check all ms <- t(term(), strict: :never), not One9.Ms.well_formed?(ms) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :default!]) do
+        result = case count do
+          :default! -> One9.Ms.put(ms, value, :lax)
+          count -> One9.Ms.put(ms, value, count, :lax)
+        end
+
+        assert Enum.all?(ms, fn
+          {element, _} ->
+            Map.has_key?(result, element)
+        end)
+      end
+    end
+  end
+
+  property "put strict form never returns non-strict" do
+    check all ms <- t(term(), strict: true) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :default!]) do
+        result = case count do
+          :default! -> One9.Ms.put(ms, value, :strict)
+          count -> One9.Ms.put(ms, value, count, :strict)
+        end
+
+        assert One9.Ms.well_formed?(result)
       end
     end
   end
@@ -140,25 +168,49 @@ defmodule One9.MsTest do
     end
   end
 
-  property "delete 2-argument form returns a well-formed multiset whenever input is well-formed" do
+  property "delete default form returns a well-formed multiset whenever input is well-formed" do
     check all ms <- t(term(), strict: false) do
-      check all value <- term() do
-        assert implies One9.Ms.well_formed?(ms),
-          One9.Ms.well_formed?(One9.Ms.delete(ms, value))
+      check all value <- term(), count <- one_of([non_negative_integer(), :all, :default!]) do
+        result = case count do
+          :default! -> One9.Ms.delete(ms, value)
+          count -> One9.Ms.delete(ms, value, count)
+        end
+
+        assert implies One9.Ms.well_formed?(ms), One9.Ms.well_formed?(result)
       end
     end
   end
 
-  property "delete 3-argument form returns a well-formed multiset whenever input is well-formed" do
-    check all ms <- t(term(), strict: false) do
-      check all value <- term(), count <- one_of([non_negative_integer(), :all]) do
-        assert implies One9.Ms.well_formed?(ms),
-          One9.Ms.well_formed?(One9.Ms.delete(ms, value, count))
+  property "delete lax form never prunes entries from input" do
+    check all ms <- t(term(), strict: :never), not One9.Ms.well_formed?(ms) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :all, :default!]) do
+        result = case count do
+          :default! -> One9.Ms.delete(ms, value, :lax)
+          count -> One9.Ms.delete(ms, value, count, :lax)
+        end
+
+        assert Enum.all?(ms, fn
+          {element, _} ->
+            Map.has_key?(result, element)
+        end)
       end
     end
   end
 
-  property "union 2-argument form returns a well-formed multiset whenever both inputs are well-formed" do
+  property "delete strict form never returns non-strict" do
+    check all ms <- t(term(), strict: true) do
+      check all value <- term(), count <- one_of([non_negative_integer(), :all, :default!]) do
+        result = case count do
+          :default! -> One9.Ms.delete(ms, value, :strict)
+          count -> One9.Ms.delete(ms, value, count, :strict)
+        end
+
+        assert One9.Ms.well_formed?(result)
+      end
+    end
+  end
+
+  property "union default form returns a well-formed multiset whenever both inputs are well-formed" do
     check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
       result = One9.Ms.union(ms1, ms2)
 

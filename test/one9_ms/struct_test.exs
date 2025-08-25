@@ -43,7 +43,7 @@ defmodule One9.MultisetTest do
 
   property "new passthrough" do
     check all multiset <- t(term()) do
-      assert One9.Multiset.equals?(One9.Multiset.new(multiset), multiset)
+      assert One9.Multiset.equals? One9.Multiset.new(multiset), multiset
     end
   end
 
@@ -66,23 +66,22 @@ defmodule One9.MultisetTest do
 
   property "difference! preserves length" do
     check all {multiset1, multiset2} <- t_with_subset(term()) do
-      result = One9.Multiset.difference!(multiset1, multiset2)
-      assert One9.Multiset.size(result) <= One9.Multiset.size(multiset1)
+      assert One9.Multiset.size(One9.Multiset.difference!(multiset1, multiset2)) <=
+        One9.Multiset.size(multiset1)
     end
   end
 
   property "empty works as expected" do
     check all multiset <- t(term()) do
-      assert One9.Multiset.empty?(multiset) === (One9.Multiset.size(multiset) === 0)
+      assert One9.Multiset.empty?(multiset) ===
+        (One9.Multiset.size(multiset) === 0)
     end
   end
 
   property "equals? invariant under ordering" do
     check all list <- list_of(term()) do
-      assert One9.Multiset.equals?(
-        One9.Multiset.new(list),
+      assert One9.Multiset.equals? One9.Multiset.new(list),
         One9.Multiset.new(Enum.shuffle(list))
-      )
     end
   end
 
