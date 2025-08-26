@@ -308,9 +308,12 @@ defmodule One9.Ms do
   @spec empty?(t_lax, :lax) :: boolean
   @spec empty?(t, :strict) :: boolean
   def empty?(ms, strict \\ :lax)
-  def empty?(ms, :strict), do: map_size(ms) === 0
-  def empty?(ms, :lax), do: not Enum.any?(ms, fn {_, count} -> count > 0 end)
 
+  def empty?(ms, :strict), do: map_size(ms) === 0
+
+  def empty?(ms, :lax) do
+    not Enum.any?(ms, fn {_, count} when is_non_neg_integer(count) -> count > 0 end)
+  end
 
   @doc """
   Determine whether two multisets are equal.

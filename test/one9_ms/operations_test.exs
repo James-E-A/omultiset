@@ -21,22 +21,36 @@ defmodule One9.MsTest do
     end
   end
 
-  def t_and_subset(value, options \\ []) do
-    tuple({t(value, options), t(value, options)})
-    |> map(fn {ms1, ms2} -> {One9.Ms.union(ms1, ms2), ms2} end)
-  end
-
-  def t_and_strict_subset(value, options \\ []) do
-    tuple({nonempty(t(value, options)), t(value, options)})
-    |> map(fn {ms1, ms2} -> {One9.Ms.sum(ms1, ms2), ms2} end)
-  end
-
   def t0(value) do
     one_of([
       t(value, strict: false),
       list_of(tuple({value, non_negative_integer()})),
       mapset_of(tuple({value, non_negative_integer()})), # representative arbitrary non-list non-map enumerable
     ])
+  end
+
+  defp t_with_subset(value, options \\ []) do
+    {strict, options} = Keyword.pop(options, :strict, false)
+    {t_strict, options} = Keyword.pop(options, :t_strict, true)
+    options = Keyword.put(options, :strict, t_strict)
+
+    if not strict do
+      tuple({t(value, options), t(value, options)})
+      |> map(fn {ms1, ms2} ->
+        {One9.Ms.union(ms1, ms2), ms2}
+      end)
+
+    else
+      tuple({nonempty(t(value, options)), t(value, options)})
+      |> map(fn {ms1, ms2} ->
+        {One9.Ms.sum(ms1, ms2), ms2}
+      end)
+    end
+  end
+
+  defp t_with_non_subset(value) do
+    tuple({t(value), t(value)})
+    |> filter(fn {ms1, ms2} -> not One9.Ms.subset?(ms2, ms1) end)
   end
 
   defp enumerable(value, options) do
@@ -66,10 +80,11 @@ defmodule One9.MsTest do
       %StreamData{} = data -> data
       enumerable -> if Enum.empty?(enumerable), do: nil, else: StreamData.member_of(enumerable)
     end)
-    |> Enum.filter()
+    |> Enum.filter(& &1)
     |> one_of()
   end
 
+  #doc "https://en.wikipedia.org/wiki/Material_conditional"
   defmacrop implies(a, b) do
     quote do: not (unquote(a) and not unquote(b))
   end
@@ -78,10 +93,10 @@ defmodule One9.MsTest do
     result = One9.Ms.counts()
 
     assert result === %{}
-    assert One9.Ms.equals? result, %{}, :strict
+    assert One9.Ms.equals?(result, %{}, :strict)
   end
 
-  property "counts always returns a well-formed multiset" do
+  property "counts always returns a well-formed result" do
     check all enumerable <- enumerable(term(), finite: true) do
       result = One9.Ms.counts(enumerable)
 
@@ -90,10 +105,8 @@ defmodule One9.MsTest do
     end
   end
 
-  property "from_counts always returns a well-formed multiset" do
-    check all \
-      counts <- t0(term())
-    do
+  property "from_counts always returns a well-formed result" do
+    check all counts <- t0(term()) do
       result = One9.Ms.from_counts(counts)
 
       assert One9.Ms.well_formed?(result)
@@ -101,34 +114,41 @@ defmodule One9.MsTest do
     end
   end
 
-  property "well_formed basic correctness" do
+  property "well_formed? basic correctness" do
     assert One9.Ms.well_formed?(%{})
     refute One9.Ms.well_formed?(%{42 => 0})
 
-    check all \
-      ms <- t(term(), strict: false)
-    do
+    check all ms <- t(term(), strict: false) do
       assert One9.Ms.well_formed?(ms) === (0 not in Map.values(ms))
     end
   end
 
-  test "from_counts default" do
+  test "from_counts empty by default" do
     result = One9.Ms.from_counts()
 
     assert result === %{}
-    assert One9.Ms.equals? result, %{}, :strict
+    assert One9.Ms.equals?(result, %{}, :strict)
   end
 
-  test "put default" do
+  test "put 1 by default" do
     assert One9.Ms.equals? \
       %{"dog" => 3, "cat" => 1} |> One9.Ms.put("cat"),
       %{"dog" => 3, "cat" => 2},
       :strict
+
+      check all ms <- t(term(), strict: false) do
+        check all value <- one_of_([One9.Ms.support(ms), term()]) do
+          result = One9.Ms.put(ms, value)
+
+          refute One9.Ms.equals?(result, ms)
+          assert One9.Ms.equals?(result, One9.Ms.put(ms, value, 1))
+        end
+      end
   end
 
   property "put default form returns a well-formed multiset whenever input is well-formed" do
     check all ms <- t(term(), strict: false) do
-      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+      check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :default!]) do
         result = case count do
           :default! -> One9.Ms.put(ms, value)
@@ -142,24 +162,21 @@ defmodule One9.MsTest do
 
   property "put lax form never prunes entries from input" do
     check all ms <- t(term(), strict: :never), not One9.Ms.well_formed?(ms) do
-      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+      check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :default!]) do
         result = case count do
           :default! -> One9.Ms.put(ms, value, :lax)
           count -> One9.Ms.put(ms, value, count, :lax)
         end
 
-        assert Enum.all?(ms, fn
-          {element, _} ->
-            Map.has_key?(result, element)
-        end)
+        assert Enum.all?(ms, fn {element, _} -> Map.has_key?(result, element) end)
       end
     end
   end
 
   property "put strict form never returns non-strict" do
     check all ms <- t(term(), strict: true) do
-      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+      check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :default!]) do
         result = case count do
           :default! -> One9.Ms.put(ms, value, :strict)
@@ -172,18 +189,18 @@ defmodule One9.MsTest do
   end
 
   property "struct interop" do
-    check all ms <- t(term()) do
-      assert One9.Ms.equals? One9.Ms.counts(One9.Multiset.new(ms)), ms
+    check all ms <- t(term(), strict: false) do
+      assert One9.Ms.equals?(One9.Ms.counts(One9.Multiset.new(ms)), ms)
     end
 
     check all ms <- t(term(), strict: true) do
-      assert One9.Ms.equals? One9.Ms.counts(One9.Multiset.new(ms)), ms, :strict
+      assert One9.Ms.equals?(One9.Ms.counts(One9.Multiset.new(ms)), ms, :strict)
     end
   end
 
   property "delete default form returns a well-formed multiset whenever input is well-formed" do
     check all ms <- t(term(), strict: false) do
-      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+      check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :all, :default!]) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value)
@@ -197,24 +214,21 @@ defmodule One9.MsTest do
 
   property "delete lax form never prunes entries from input" do
     check all ms <- t(term(), strict: :never), not One9.Ms.well_formed?(ms) do
-      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+      check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :all, :default!]) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value, :lax)
           count -> One9.Ms.delete(ms, value, count, :lax)
         end
 
-        assert Enum.all?(ms, fn
-          {element, _} ->
-            Map.has_key?(result, element)
-        end)
+        assert Enum.all?(ms, fn {element, _} -> Map.has_key?(result, element) end)
       end
     end
   end
 
-  property "delete strict form never returns non-strict" do
+  property "delete strict form always returns a well-formed result" do
     check all ms <- t(term(), strict: true) do
-      check all value <- one_of_([One9.Ms.support(multiset), term()]),
+      check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :all, :default!]) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value, :strict)
@@ -226,7 +240,63 @@ defmodule One9.MsTest do
     end
   end
 
-  property "union default form returns a well-formed multiset whenever both inputs are well-formed" do
+  property "difference does not raise when right is not a subset of left" do
+    check all {ms1, ms2} <- t_with_non_subset(term()) do
+      One9.Ms.difference(ms1, ms2)
+    end
+  end
+
+  property "difference default form returns a well-formed result whenever input is well-formed" do
+    check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
+      assert implies One9.Ms.well_formed?(ms1) and One9.Ms.well_formed?(ms2),
+        One9.Ms.well_formed?(One9.Ms.difference(ms1, ms2))
+    end
+  end
+
+  property "difference lax form never prunes entries from left input" do
+    check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
+      result = One9.Ms.difference(ms1, ms2, :lax)
+
+      assert Enum.all?(ms1, fn {element, _} -> Map.has_key?(result, element) end)
+    end
+  end
+
+  property "difference strict form always returns a well-formed result" do
+    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+      assert One9.Ms.well_formed?(One9.Ms.difference(ms1, ms2, :strict))
+    end
+  end
+
+  property "difference! raises when right is not a subset of left" do
+    check all {ms1, ms2} <- t_with_non_subset(term()) do
+      assert_raise KeyError, fn ->
+        One9.Ms.difference!(ms1, ms2)
+      end
+    end
+  end
+
+  property "difference! default form returns a well-formed result whenever input is well-formed" do
+    check all {ms1, ms2} <- t_with_subset(term(), t_strict: false) do
+      assert implies One9.Ms.well_formed?(ms1) and One9.Ms.well_formed?(ms2),
+        One9.Ms.well_formed?(One9.Ms.difference!(ms1, ms2))
+    end
+  end
+
+  property "difference! lax form never prunes entries from left input" do
+    check all {ms1, ms2} <- t_with_subset(term(), t_strict: false) do
+      result = One9.Ms.difference!(ms1, ms2, :lax)
+
+      assert Enum.all?(ms1, fn {element, _} -> Map.has_key?(result, element) end)
+    end
+  end
+
+  property "difference! strict form always returns a well-formed result" do
+    check all {ms1, ms2} <- t_with_subset(term()) do
+      assert One9.Ms.well_formed?(One9.Ms.difference!(ms1, ms2, :strict))
+    end
+  end
+
+  property "union default form returns a well-formed result whenever both inputs are well-formed" do
     check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
       result = One9.Ms.union(ms1, ms2)
 
@@ -258,19 +328,8 @@ defmodule One9.MsUtilTest do
   end
 
   property "to_gbt round-trip with map" do
-    check all \
-      map <- map_of(term(), term()),
-      tree <- map(one_of([
-        constant(map),
-        constant(One9.Ms.Util.map_iter(map)),
-      ]), &One9.Ms.Util.to_gbt/1)
-    do
-      assert Map.new(:gb_trees.to_list(tree)) === map
-
-      if not :gb_trees.is_empty(tree) do
-        {start, _} = :gb_trees.smallest(tree)
-        assert Map.new(gbt_iter_from(tree, start)) === map
-      end
+    check all map <- map_of(term(), term()) do
+      assert Map.new(:gb_trees.to_list(One9.Ms.Util.to_gbt(map))) === map
     end
   end
 end

@@ -20,16 +20,14 @@ defmodule One9.MultisetTest do
     case Keyword.pop(options, :strict, false) do
       {false, []} ->
         tuple({t(value), t(value)})
-        |> map(fn
-          {multiset1, multiset2} ->
-            {One9.Multiset.union(multiset1, multiset2), multiset2}
+        |> map(fn {multiset1, multiset2} ->
+          {One9.Multiset.union(multiset1, multiset2), multiset2}
         end)
 
       {true, []} ->
         tuple({nonempty(t(value)), t(value)})
-        |> map(fn
-          {multiset1, multiset2} ->
-            {One9.Multiset.sum(multiset1, multiset2), multiset2}
+        |> map(fn {multiset1, multiset2} ->
+          {One9.Multiset.sum(multiset1, multiset2), multiset2}
         end)
 
       {_, options} ->
@@ -43,17 +41,34 @@ defmodule One9.MultisetTest do
       %StreamData{} = data -> data
       enumerable -> if Enum.empty?(enumerable), do: nil, else: StreamData.member_of(enumerable)
     end)
-    |> Enum.filter()
+    |> Enum.filter(&(&1))
     |> one_of()
   end
 
+  #doc "https://en.wikipedia.org/wiki/Material_conditional"
   defmacrop implies(a, b) do
     quote do: not (unquote(a) and not unquote(b))
   end
 
   property "new passthrough" do
     check all multiset <- t(term()) do
-      assert One9.Multiset.equals? One9.Multiset.new(multiset), multiset
+      assert One9.Multiset.equals?(One9.Multiset.new(multiset), multiset)
+    end
+  end
+
+  property "new agrees with to_list" do
+    check all multiset <- t(term()) do
+      assert One9.Multiset.equals? \
+        One9.Multiset.new(One9.Multiset.to_list(multiset)),
+        multiset
+    end
+  end
+
+  property "new agrees with to_counts" do
+    check all multiset <- t(term()) do
+      assert One9.Multiset.equals? \
+        One9.Multiset.new(One9.Multiset.to_counts(multiset)),
+        multiset
     end
   end
 
@@ -81,21 +96,35 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "empty works as expected" do
+  property "empty basic correctness" do
+    assert One9.Multiset.empty?(One9.Multiset.new([]))
+    assert One9.Multiset.empty?(One9.Multiset.new(%{}))
+    refute One9.Multiset.empty?(One9.Multiset.new([0]))
+    refute One9.Multiset.empty?(One9.Multiset.new([nil]))
+    assert One9.Multiset.empty?(One9.Multiset.new(%{42 => 0}))
+    refute One9.Multiset.empty?(One9.Multiset.new(%{42 => 1}))
+
     check all multiset <- t(term()) do
       assert One9.Multiset.empty?(multiset) ===
         (One9.Multiset.size(multiset) === 0)
     end
   end
 
-  property "equals? invariant under ordering" do
+  property "equals? invariant under input ordering" do
     check all list <- list_of(term()) do
-      assert One9.Multiset.equals? One9.Multiset.new(list),
+      assert One9.Multiset.equals? \
+        One9.Multiset.new(list),
         One9.Multiset.new(Enum.shuffle(list))
+    end
+
+    check all counts <- list_of(tuple({term(), non_negative_integer()})) do
+      assert One9.Multiset.equals? \
+        One9.Multiset.from_counts(counts),
+        One9.Multiset.from_counts(Enum.shuffle(counts))
     end
   end
 
-  property "Enumerable member? from_elements" do
+  property "from_elements preserves membership" do
     check all list <- list_of(term()) do
       result = One9.Multiset.from_elements(list)
 
@@ -105,10 +134,18 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "from_elements round-trip" do
+  property "from_elements round-trip with to_list" do
     check all list <- list_of(term()) do
-      result = One9.Multiset.to_list(One9.Multiset.from_elements(list))
-      assert Enum.sort(result) === Enum.sort(list)
+      assert Enum.sort(One9.Multiset.to_list(One9.Multiset.from_elements(list))) ===
+        Enum.sort(list)
+    end
+  end
+
+  property "to_list round-trip with from_elements" do
+    check all multiset <- t(term()) do
+      assert One9.Multiset.equals? \
+        One9.Multiset.from_elements(One9.Multiset.to_list(multiset)),
+        multiset
     end
   end
 
@@ -141,14 +178,16 @@ defmodule One9.MultisetTest do
 
   property "intersection commutative" do
     check all multiset1 <- t(term()), multiset2 <- t(term()) do
-      assert One9.Multiset.equals? One9.Multiset.intersection(multiset1, multiset2),
+      assert One9.Multiset.equals? \
+        One9.Multiset.intersection(multiset1, multiset2),
         One9.Multiset.intersection(multiset2, multiset1)
     end
   end
 
   property "intersection idempotence" do
     check all multiset <- t(term()) do
-      assert One9.Multiset.equals? One9.Multiset.intersection(multiset, multiset),
+      assert One9.Multiset.equals? \
+        One9.Multiset.intersection(multiset, multiset),
         multiset
     end
   end
@@ -209,7 +248,7 @@ defmodule One9.MultisetTest do
       result = One9.Multiset.put(multiset, value, 0)
 
       assert One9.Ms.well_formed?(result.counts)
-      assert One9.Multiset.equals? result, multiset
+      assert One9.Multiset.equals?(result, multiset)
       assert implies One9.Multiset.member?(result, value),
         One9.Multiset.member?(multiset, value)
     end
@@ -267,6 +306,7 @@ defmodule One9.MultisetTest do
   property "sum basic correctness" do
     check all multiset1 <- t(term()), multiset2 <- t(term()) do
       result = One9.Multiset.sum(multiset1, multiset2)
+
       check all element <- term() do
         assert One9.Multiset.count_element(result, element) ===
           One9.Multiset.count_element(multiset1, element) +
@@ -277,7 +317,8 @@ defmodule One9.MultisetTest do
 
   property "sum self doubles all counts" do
     check all multiset <- t(term()) do
-      assert One9.Multiset.equals? One9.Multiset.sum(multiset, multiset),
+      assert One9.Multiset.equals? \
+        One9.Multiset.sum(multiset, multiset),
         One9.Multiset.new(:maps.map(fn _, count -> count*2 end, multiset.counts))
     end
   end
@@ -300,6 +341,7 @@ defmodule One9.MultisetTest do
   property "union basic correctness" do
     check all multiset1 <- t(term()), multiset2 <- t(term()) do
       result = One9.Multiset.union(multiset1, multiset2)
+
       check all element <- term() do
         assert One9.Multiset.count_element(result, element) ===
           max(
@@ -312,14 +354,15 @@ defmodule One9.MultisetTest do
 
   property "union commutative" do
     check all multiset1 <- t(term()), multiset2 <- t(term()) do
-      assert One9.Multiset.equals? One9.Multiset.union(multiset1, multiset2),
+      assert One9.Multiset.equals? \
+        One9.Multiset.union(multiset1, multiset2),
         One9.Multiset.union(multiset2, multiset1)
     end
   end
 
   property "union idempotence" do
     check all multiset <- t(term()) do
-      assert One9.Multiset.equals? One9.Multiset.union(multiset, multiset), multiset
+      assert One9.Multiset.equals?(One9.Multiset.union(multiset, multiset), multiset)
     end
   end
 end
