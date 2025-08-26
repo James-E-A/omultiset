@@ -694,10 +694,14 @@ defmodule One9.Ms do
   @doc """
   Convert a multiset into a List of unique elements.
 
+  ## Examples
+
       iex> One9.Ms.counts([1, 1, 2, 42, 42, 42, 42, 42])
       ...> |> One9.Ms.support()
       ...> |> Enum.sort()
       [1, 2, 42]
+
+  See also `to_list/1`, `support_size/1`, `size/1`.
   """
   @spec support(t(e)) :: [e] when e: term
   @spec support(t(e), :strict) :: [e] when e: term
@@ -737,7 +741,7 @@ defmodule One9.Ms do
       ...> |> One9.Ms.support_size()
       2
 
-  See also `support/`, `size/1`.
+  See also `support/1`, `size/1`.
   """
   @spec support_size(t() | t_lax()) :: non_neg_integer()
   @spec support_size(t(), :strict) :: non_neg_integer()
