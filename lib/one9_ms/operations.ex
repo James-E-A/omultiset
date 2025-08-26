@@ -168,18 +168,26 @@ defmodule One9.Ms do
   @spec delete(t_lax(e), term()) :: t_lax(e) when e: term()
   @spec delete(t_lax(e), term(), :lax) :: t_lax(e) when e: term()
 
-  @spec delete(t(e), term(), non_neg_integer() | :all) :: t(e) when e: term()
-  @spec delete(t(e), term(), non_neg_integer() | :all, :strict) :: t(e) when e: term()
+  @spec delete(t(e), term(), non_neg_integer() | :all) :: t(e)
+    when e: term()
+  @spec delete(t(e), term(), non_neg_integer() | :all, :strict) :: t(e)
+    when e: term()
 
-  @spec delete(t_lax(e), term(), non_neg_integer() | :all) :: t_lax(e) when e: term()
-  @spec delete(t_lax(e), term(), non_neg_integer() | :all, :lax) :: t_lax(e) when e: term()
+  @spec delete(t_lax(e), term(), non_neg_integer() | :all) :: t_lax(e)
+    when e: term()
+  @spec delete(t_lax(e), term(), non_neg_integer() | :all, :lax) :: t_lax(e)
+    when e: term()
 
-  def delete(ms, element), do: Map.delete(ms, element)
+  def delete(ms, element, count_or_strict)
 
   def delete(ms, element, count) when is_integer(count) or count === :all,
     do: delete(ms, element, count, :strict)
+
   def delete(ms, element, :strict), do: delete(ms, element, :all, :strict)
+
   def delete(ms, element, :lax), do: delete(ms, element, :all, :lax)
+
+  def delete(ms, element), do: Map.delete(ms, element)
 
   def delete(ms, element, count, strict)
 
@@ -380,6 +388,8 @@ defmodule One9.Ms do
       ms2
     )
   end
+
+  def difference!(ms1, ms2, strict)
 
   def difference!(ms1, ms2, :strict) do
     :maps.fold(
