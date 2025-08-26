@@ -190,9 +190,7 @@ defmodule One9.Ms do
   def delete(ms, element, count, :strict) when is_pos_integer(count) do
     case ms do
       %{^element => n1} ->
-        n2 = n1 - count
-
-        if n2 > 0 do
+        if (n2 = n1 - count) > 0 do
           %{ms | element => n2}
         else
           Map.delete(ms, element)
@@ -256,7 +254,7 @@ defmodule One9.Ms do
       ...> |> difference(%{"dog" => 3, "unicorn" => 1}, :lax)
       %{"cat" => 10, "dog" => 7}
 
-  See also `difference!/2`, `delete/3`.
+  See also `delete/3`, `difference!/2`.
   """
   @spec difference(t(e), t() | t_lax()) :: t(e) when e: term()
   @spec difference(t(e), t() | t_lax(), :strict) :: t(e) when e: term()
@@ -273,9 +271,7 @@ defmodule One9.Ms do
         element, n1 ->
           case ms2 do
             %{^element => n2} ->
-              n3 = n1 - n2
-
-              if n3 > 0 do
+              if (n3 = n1 - n2) > 0 do
                 {true, n3}
               else
                 false
@@ -296,9 +292,7 @@ defmodule One9.Ms do
         element, n1 ->
           case ms2 do
             %{^element => n2} ->
-              n3 = n1 - n2
-
-              if n3 > 0 do
+              if (n3 = n1 - n2) > 0 do
                 {true, n3}
               else
                 {true, 0}
@@ -992,29 +986,52 @@ defmodule One9.Ms do
   end
 
   @doc """
-      iex> One9.Ms.take(%{a: 1, b: 2}, :b, 1)
-      {%{a: 1, b: 1}, [:b]}
+  ## Examples
 
-      iex> One9.Ms.take(%{a: 1, b: 2}, :b, 3)
-      {%{a: 1}, [:b, :b]}
+      iex> %{"cat" => 10, "dog" => 10}
+      ...> |> One9.Ms.take("cat", 2)
+      {%{"cat" => 8, "dog" => 10}, ["cat", "cat"]}
 
-      iex> One9.Ms.take(%{a: 1, b: 2}, :z, 999)
-      {%{a: 1, b: 2}, []}
+      iex> %{"cat" => 5, "dog" => 5}
+      ...> |> One9.Ms.take("cat", 10000000000)
+      {%{"dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
+
+      iex> %{"cat" => 5, "dog" => 5}
+      ...> |> One9.Ms.take("cat", :all)
+      {%{"dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
+
+      iex> %{"cat" => 5, "dog" => 5}
+      ...> |> One9.Ms.take("cat", 10000000000, :lax)
+      {%{"cat" => 0, "dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
   """
-  @spec take(t(e), e1, non_neg_integer()) :: {t(e), [e1]} when e: term, e1: term
-  def take(ms, element, count) when is_pos_integer(count) do
+  @spec take(t(e1), e2, non_neg_integer()) :: {t(e1), [e2]} when e1: term, e2: term
+  @spec take(t(e1), e2, non_neg_integer(), :strict) :: {t(e1), [e2]} when e1: term, e2: term
+
+  @spec take(t_lax(e1), e2, non_neg_integer()) :: {t_lax(e1), [e2]} when e1: term, e2: term
+  @spec take(t_lax(e1), e2, non_neg_integer(), :lax) :: {t_lax(e1), [e2]} when e1: term, e2: term
+
+  def take(ms, element, count),
+    do: take(ms, element, count, :strict)
+
+  def take(ms, element, count, strict) when is_non_neg_integer(count) do
     case ms do
       %{^element => available} ->
         n = min(count, available)
-        {delete(ms, element, n), List.duplicate(element, n)}
+        {delete(ms, element, n, strict), List.duplicate(element, n)}
 
       %{} ->
         take(ms, element, 0)
     end
   end
 
-  def take(ms, _, 0) do
-    {ms, []}
+  def take(ms, element, :all, strict) do
+    case ms do
+      %{^element => count} ->
+        {delete(ms, element, :all, strict), List.duplicate(element, count)}
+
+      %{} ->
+        take(ms, element, 0)
+    end
   end
 
   @doc false
