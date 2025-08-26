@@ -2,7 +2,7 @@ defmodule One9.MsTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
 
-  doctest One9.Ms
+  doctest One9.Ms, import: true
 
   def t(value, options \\ []) do
     case Keyword.pop(options, :strict, false) do
@@ -13,7 +13,7 @@ defmodule One9.MsTest do
         map_of(value, positive_integer())
 
       {:never, []} ->
-        tuple({t(value, strict: true), value})
+        tuple({t(value, strict: false), value})
         |> map(fn {ms, canary} -> Map.put(ms, canary, 0) end)
 
       {_, options} ->
@@ -84,11 +84,6 @@ defmodule One9.MsTest do
     |> one_of()
   end
 
-  #doc "https://en.wikipedia.org/wiki/Material_conditional"
-  defmacrop implies(a, b) do
-    quote do: not (unquote(a) and not unquote(b))
-  end
-
   test "counts default" do
     result = One9.Ms.counts()
 
@@ -147,7 +142,7 @@ defmodule One9.MsTest do
   end
 
   property "put default form returns a well-formed multiset whenever input is well-formed" do
-    check all ms <- t(term(), strict: false) do
+    check all ms <- t(term(), strict: true) do
       check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :default!]) do
         result = case count do
@@ -155,13 +150,13 @@ defmodule One9.MsTest do
           count -> One9.Ms.put(ms, value, count)
         end
 
-        assert implies One9.Ms.well_formed?(ms), One9.Ms.well_formed?(result)
+        assert One9.Ms.well_formed?(result)
       end
     end
   end
 
-  property "put lax form never prunes entries from input" do
-    check all ms <- t(term(), strict: :never), not One9.Ms.well_formed?(ms) do
+  property "put lax result preserves all keys from input" do
+    check all ms <- t(term(), strict: false) do
       check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :default!]) do
         result = case count do
@@ -169,15 +164,17 @@ defmodule One9.MsTest do
           count -> One9.Ms.put(ms, value, count, :lax)
         end
 
-        assert Enum.all?(ms, fn {element, _} -> Map.has_key?(result, element) end)
+        assert Enum.all?(Map.keys(ms), &Map.has_key?(result, &1))
       end
     end
   end
 
-  property "put strict form never returns non-strict" do
+  property "put strict result always well-formed" do
     check all ms <- t(term(), strict: true) do
-      check all value <- one_of_([One9.Ms.support(ms), term()]),
-                count <- one_of([non_negative_integer(), :default!]) do
+      check all {value, count} <- tuple({
+        one_of_([One9.Ms.support(ms), term()]),
+        one_of([non_negative_integer(), :default!])
+      }) do
         result = case count do
           :default! -> One9.Ms.put(ms, value, :strict)
           count -> One9.Ms.put(ms, value, count, :strict)
@@ -198,38 +195,44 @@ defmodule One9.MsTest do
     end
   end
 
-  property "delete default form returns a well-formed multiset whenever input is well-formed" do
-    check all ms <- t(term(), strict: false) do
-      check all value <- one_of_([One9.Ms.support(ms), term()]),
-                count <- one_of([non_negative_integer(), :all, :default!]) do
+  property "delete result well-formed whenever inputs are well-formed" do
+    check all ms <- t(term(), strict: true) do
+      check all {value, count} <- tuple({
+        one_of_([One9.Ms.support(ms), term()]),
+        one_of([non_negative_integer(), :all, :default!])
+      }) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value)
           count -> One9.Ms.delete(ms, value, count)
         end
 
-        assert implies One9.Ms.well_formed?(ms), One9.Ms.well_formed?(result)
+        assert One9.Ms.well_formed?(result)
       end
     end
   end
 
-  property "delete lax form never prunes entries from input" do
-    check all ms <- t(term(), strict: :never), not One9.Ms.well_formed?(ms) do
-      check all value <- one_of_([One9.Ms.support(ms), term()]),
-                count <- one_of([non_negative_integer(), :all, :default!]) do
+  property "delete lax result preserves all keys from input" do
+    check all ms <- t(term(), strict: false) do
+      check all {value, count} <- tuple({
+        one_of_([One9.Ms.support(ms), term()]),
+        one_of([non_negative_integer(), :all, :default!])
+      }) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value, :lax)
           count -> One9.Ms.delete(ms, value, count, :lax)
         end
 
-        assert Enum.all?(ms, fn {element, _} -> Map.has_key?(result, element) end)
+        assert Enum.all?(Map.keys(ms), &Map.has_key?(result, &1))
       end
     end
   end
 
-  property "delete strict form always returns a well-formed result" do
+  property "delete strict result always well-formed" do
     check all ms <- t(term(), strict: true) do
-      check all value <- one_of_([One9.Ms.support(ms), term()]),
-                count <- one_of([non_negative_integer(), :all, :default!]) do
+      check all {value, count} <- tuple({
+        one_of_([One9.Ms.support(ms), term()]),
+        one_of([non_negative_integer(), :all, :default!])
+      }) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value, :strict)
           count -> One9.Ms.delete(ms, value, count, :strict)
@@ -246,22 +249,21 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference default form returns a well-formed result whenever input is well-formed" do
-    check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
-      assert implies One9.Ms.well_formed?(ms1) and One9.Ms.well_formed?(ms2),
-        One9.Ms.well_formed?(One9.Ms.difference(ms1, ms2))
+  property "difference result well-formed whenever inputs are well-formed" do
+    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+      assert One9.Ms.well_formed?(One9.Ms.difference(ms1, ms2))
     end
   end
 
-  property "difference lax form never prunes entries from left input" do
+  property "difference lax result preserves all keys from left input" do
     check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
       result = One9.Ms.difference(ms1, ms2, :lax)
 
-      assert Enum.all?(ms1, fn {element, _} -> Map.has_key?(result, element) end)
+      assert Enum.all?(Map.keys(ms1), &Map.has_key?(result, &1))
     end
   end
 
-  property "difference strict form always returns a well-formed result" do
+  property "difference strict result always well-formed" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
       assert One9.Ms.well_formed?(One9.Ms.difference(ms1, ms2, :strict))
     end
@@ -275,33 +277,67 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference! default form returns a well-formed result whenever input is well-formed" do
-    check all {ms1, ms2} <- t_with_subset(term(), t_strict: false) do
-      assert implies One9.Ms.well_formed?(ms1) and One9.Ms.well_formed?(ms2),
-        One9.Ms.well_formed?(One9.Ms.difference!(ms1, ms2))
+  property "difference! result well-formed whenever left input is well-formed" do
+    check all {ms1, ms2} <- (
+      t_with_subset(term(), t_strict: false)
+      |> map(fn {ms1, ms2} -> {One9.Ms.from_counts(ms1), ms2} end)
+    ) do
+      assert One9.Ms.well_formed?(One9.Ms.difference!(ms1, ms2))
     end
   end
 
-  property "difference! lax form never prunes entries from left input" do
+  property "difference! lax result preserves all keys from left input" do
     check all {ms1, ms2} <- t_with_subset(term(), t_strict: false) do
       result = One9.Ms.difference!(ms1, ms2, :lax)
 
-      assert Enum.all?(ms1, fn {element, _} -> Map.has_key?(result, element) end)
+      assert Enum.all?(Map.keys(ms1), &Map.has_key?(result, &1))
     end
   end
 
-  property "difference! strict form always returns a well-formed result" do
+  property "difference! strict result always well-formed" do
     check all {ms1, ms2} <- t_with_subset(term()) do
       assert One9.Ms.well_formed?(One9.Ms.difference!(ms1, ms2, :strict))
     end
   end
 
-  property "union default form returns a well-formed result whenever both inputs are well-formed" do
-    check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
-      result = One9.Ms.union(ms1, ms2)
+  property "union result well-formed whenever inputs are well-formed" do
+    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+      assert One9.Ms.well_formed?(One9.Ms.union(ms1, ms2))
+    end
+  end
 
-      assert implies One9.Ms.well_formed?(ms1) and One9.Ms.well_formed?(ms2),
-        One9.Ms.well_formed?(result)
+  property "symmetric_difference basic correctness" do
+    check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
+      result = One9.Ms.symmetric_difference(ms1, ms2)
+
+      check all value <- one_of_([One9.Ms.support(ms1), One9.Ms.support(ms2), term()]) do
+        assert One9.Ms.count_element(result, value) ===
+          abs(
+            One9.Ms.count_element(ms1, value) -
+            One9.Ms.count_element(ms2, value)
+          )
+      end
+    end
+  end
+
+  property "symmetric_difference result well-formed whenever inputs are well-formed" do
+    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+      assert One9.Ms.well_formed?(One9.Ms.symmetric_difference(ms1, ms2))
+    end
+  end
+
+  property "symmetric_difference strict result always well-formed" do
+    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+      assert One9.Ms.well_formed?(One9.Ms.symmetric_difference(ms1, ms2, :strict))
+    end
+  end
+
+  property "symmetric_difference lax result preserves all keys from inputs" do
+    check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
+      result = One9.Ms.symmetric_difference(ms1, ms2, :lax)
+
+      assert Enum.all?(Map.keys(ms1), &Map.has_key?(result, &1))
+      assert Enum.all?(Map.keys(ms2), &Map.has_key?(result, &1))
     end
   end
 end

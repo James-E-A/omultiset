@@ -92,7 +92,7 @@ defmodule One9.Multiset do
       ...> |> One9.Multiset.size()
       3
 
-  See also `support_count/1`.
+  See also `support_size/1`.
   """
   @spec size(t) :: non_neg_integer
   def size(%__MODULE__{counts: ms}), do: Ms.size(ms)
@@ -168,8 +168,8 @@ defmodule One9.Multiset do
 
   See also `size/1`.
   """
-  @spec support_count(t()) :: non_neg_integer()
-  def support_count(%__MODULE__{counts: ms}), do: Ms.support_count(ms, :strict)
+  @spec support_size(t()) :: non_neg_integer()
+  def support_size(%__MODULE__{counts: ms}), do: Ms.support_size(ms, :strict)
 
   @doc false
   @spec to_tree_1(t(e)) ::
@@ -190,7 +190,7 @@ defmodule One9.Multiset do
   defimpl Inspect, for: One9.Multiset do
     def inspect(multiset, opts) do
       if :math.floor(:math.sqrt(One9.Multiset.size(multiset))) <=
-        One9.Multiset.support_count(multiset)
+        One9.Multiset.support_size(multiset)
       do
         inspect_as_list(multiset, opts)
       else
@@ -297,7 +297,8 @@ defmodule One9.Multiset do
       false
   """
   @spec subset?(t(), t()) :: boolean()
-  def subset?(%__MODULE__{counts: lhs}, %__MODULE__{counts: rhs}), do: Ms.subset?(lhs, rhs)
+  def subset?(%__MODULE__{counts: lhs}, %__MODULE__{counts: rhs}),
+    do: Ms.subset?(lhs, rhs, :strict)
 
   @doc """
   Return the union of two Multisets.

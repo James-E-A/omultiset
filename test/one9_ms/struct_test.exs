@@ -249,8 +249,10 @@ defmodule One9.MultisetTest do
 
       assert One9.Ms.well_formed?(result.counts)
       assert One9.Multiset.equals?(result, multiset)
-      assert implies One9.Multiset.member?(result, value),
-        One9.Multiset.member?(multiset, value)
+      check all value_ <- one_of_([constant(value), One9.Multiset.support(multiset), term()]) do
+        assert implies One9.Multiset.member?(result, value_),
+          One9.Multiset.member?(multiset, value_)
+      end
     end
   end
 
