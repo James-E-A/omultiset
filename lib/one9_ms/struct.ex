@@ -323,7 +323,7 @@ defmodule One9.Multiset do
   @doc """
   Return the first Multiset less any copies of elements the second Multiset shares.
 
-  This difference is "soft" or "clamping". See also `difference!/1`.
+  This difference is "soft" or "clamping". See also `difference!/2`.
   """
   @spec difference(t(e), t()) :: t(e) when e: term
   def difference(%__MODULE__{counts: lhs}, %__MODULE__{counts: rhs}),
@@ -332,7 +332,7 @@ defmodule One9.Multiset do
   @doc """
   Return the first Multiset less any copies of elements the second Multiset shares.
 
-  Raises if the first Multiset is not a subset of the second. See also `difference/1`.
+  Raises if the first Multiset is not a subset of the second. See also `difference/2`.
   """
   @spec difference!(t(e), t(e)) :: t(e) when e: term
   def difference!(%__MODULE__{counts: lhs}, %__MODULE__{counts: rhs}),
