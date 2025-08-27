@@ -479,7 +479,7 @@ defmodule One9.Ms do
     map_size(ms) === 0
   end
 
-  def empty?(ms, :lax) do
+  def empty?(ms, :lax) when is_map(ms) do
     not Enum.any?(map_iter(ms), fn
       {_, count} when is_non_neg_integer(count) ->
         count > 0
@@ -487,6 +487,10 @@ defmodule One9.Ms do
       _ ->
         raise ArgumentError, "bad multiset"
     end)
+  end
+
+  def empty?(_, :lax) do
+    raise ArgumentError, "bad multiset"
   end
 
   @doc """
@@ -561,10 +565,11 @@ defmodule One9.Ms do
 
   See also `counts/1`.
   """
-  @spec from_counts(counts :: t0(e)) :: t(e) when e: term
-  @spec from_counts(counts :: t0(e), :strict) :: t(e) when e: term
+  @spec from_counts(counts :: t(e) | t_lax(e) | t0(e)) :: t(e) when e: term
+  @spec from_counts(counts :: t(e) | t_lax(e) | t0(e), :strict) :: t(e) when e: term
 
-  @spec from_counts(counts :: t0(e), :lax) :: t_lax(e) when e: term
+  @spec from_counts(counts :: t(e), :lax) :: t(e) when e: term
+  @spec from_counts(counts :: t_lax(e) | t0(e), :lax) :: t_lax(e) when e: term
 
   def from_counts(counts \\ %{}, strict \\ :strict)
 
@@ -647,7 +652,10 @@ defmodule One9.Ms do
   end
 
   @doc """
-  Add additional copies (by default, 1 copy) of the element into the multiset.
+  Add additional copies of an element into the multiset.
+
+  Adding `0` copies will not make the multiset non-strict, *unless* `:lax` is also passed,
+  in which case it will populate that entry.
 
   ## Examples
 
@@ -675,10 +683,7 @@ defmodule One9.Ms do
 
   def put(ms, element, count \\ 1, strict \\ :strict)
 
-  def put(ms, element, strict, _) when strict in [:strict, :lax],
-    do: put(ms, element, 1, strict)
-
-  def put(ms, element, count, :strict) do
+  def put(ms, element, count, :strict) when is_integer(count) do
     if count > 0 do
       Map.update(ms, element, count, &(&1 + count))
     else
@@ -686,9 +691,12 @@ defmodule One9.Ms do
     end
   end
 
-  def put(ms, element, count, :lax) do
+  def put(ms, element, count, :lax) when is_non_neg_integer(count) do
     Map.update(ms, element, count, &(&1 + count))
   end
+
+  def put(ms, element, strict, _) when strict in [:strict, :lax],
+    do: put(ms, element, 1, strict)
 
   @doc """
   Determine whether the first multiset is a (non-strict) subset of the second.
@@ -1021,7 +1029,17 @@ defmodule One9.Ms do
 
   See also `symmetric_difference/2`.
   """
-  @spec intersection(t_lax(e | e1), t_lax(e | e2)) :: t(e) when e: term, e1: term, e2: term
+  @spec intersection(t(e | e1), t(e | e2), nil) :: t(e)
+    when e: term(), e1: term(), e2: term()
+  @spec intersection(
+    t(e | e1) | t_lax(e | e1),
+    t(e | e2) | t_lax(e | e2), :strict) :: t(e)
+    when e: term(), e1: term(), e2: term()
+  @spec intersection(t(e | e1), t(e | e2), :lax) :: t(e)
+    when e: term(), e1: term(), e2: term()
+
+  @spec intersection(t_lax(e | e1), t_lax(e | e2), :lax) :: t_lax(e)
+    when e: term(), e1: term(), e2: term()
 
   def intersection(ms1, ms2, strict \\ nil)
 

@@ -3,6 +3,8 @@ defmodule One9.MsTest do
   use ExUnitProperties
 
   doctest One9.Ms, import: true
+  import One9.Ms.Util
+  require One9.Ms.Util
 
   def t(value, options \\ []) do
     case Keyword.pop(options, :strict, false) do
@@ -48,9 +50,23 @@ defmodule One9.MsTest do
     end
   end
 
-  defp t_with_non_subset(value) do
-    tuple({t(value), t(value)})
+  defp t_with_non_subset(value, options \\ []) do
+    tuple({t(value, options), t(value, options)})
     |> filter(fn {ms1, ms2} -> not One9.Ms.subset?(ms2, ms1) end)
+  end
+
+  defp not_t(options \\ []) do
+    term()
+    |> filter(case Keyword.pop(options, :strict, false) do
+      {false, []} ->
+        # we will prevent even non-strict sets from showing up
+        fn x -> not is_map(x) or not Enum.all?(Map.values(x), &is_non_neg_integer/1) end
+
+      {true, []} ->
+        # we may allow non-strict sets to show up,
+        # because they are NOT strict, thus they DO fall outside of t(strict: true)
+        fn x -> not is_map(x) or not Enum.all?(Map.values(x), &is_pos_integer/1) end
+    end)
   end
 
   defp enumerable(value, options) do
@@ -249,9 +265,19 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference does not raise when right is not a subset of left" do
-    check all {ms1, ms2} <- t_with_non_subset(term()) do
+  property "difference/3 does not raise when right is not a subset of left" do
+    check all {ms1, ms2} <- t_with_non_subset(term(), strict: false) do
       One9.Ms.difference(ms1, ms2)
+    end
+  end
+
+  property "difference/4 does not raise when right is not a subset of left" do
+    check all {ms1, ms2} <- t_with_non_subset(term(), strict: false) do
+      One9.Ms.difference(ms1, ms2, :lax)
+    end
+
+    check all {ms1, ms2} <- t_with_non_subset(term(), strict: true) do
+      One9.Ms.difference(ms1, ms2, :strict)
     end
   end
 
@@ -275,11 +301,19 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference! raises when right is not a subset of left" do
-    check all {ms1, ms2} <- t_with_non_subset(term()) do
-      assert_raise KeyError, fn ->
-        One9.Ms.difference!(ms1, ms2)
-      end
+  property "difference!/3 raises when right is not a subset of left" do
+    check all {ms1, ms2} <- t_with_non_subset(term(), strict: false) do
+      assert_raise KeyError, fn -> One9.Ms.difference!(ms1, ms2) end
+    end
+  end
+
+  property "difference!/4 raises when right is not a subset of left" do
+    check all {ms1, ms2} <- t_with_non_subset(term(), strict: false) do
+      assert_raise KeyError, fn -> One9.Ms.difference!(ms1, ms2, :lax) end
+    end
+
+    check all {ms1, ms2} <- t_with_non_subset(term(), strict: true) do
+      assert_raise KeyError, fn -> One9.Ms.difference!(ms1, ms2, :strict) end
     end
   end
 
@@ -306,9 +340,21 @@ defmodule One9.MsTest do
     end
   end
 
-  property "union result well-formed whenever inputs are well-formed" do
-    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
-      assert One9.Ms.strict?(One9.Ms.union(ms1, ms2))
+  property "strict?/1 accepts strict inputs" do
+    check all ms <- t(term(), strict: true) do
+      assert One9.Ms.strict?(ms)
+    end
+  end
+
+  property "strict?/1 rejects non-strict inputs" do
+    check all ms <- t(term(), strict: :never) do
+      refute One9.Ms.strict?(ms)
+    end
+  end
+
+  property "strict?/1 raises on bad inputs" do
+    check all bad <- not_t() do
+      assert_raise ArgumentError, fn -> One9.Ms.strict?(bad) end
     end
   end
 
@@ -344,6 +390,12 @@ defmodule One9.MsTest do
 
       assert Enum.all?(Map.keys(ms1), &Map.has_key?(result, &1))
       assert Enum.all?(Map.keys(ms2), &Map.has_key?(result, &1))
+    end
+  end
+
+  property "union result well-formed whenever inputs are well-formed" do
+    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+      assert One9.Ms.strict?(One9.Ms.union(ms1, ms2))
     end
   end
 end
