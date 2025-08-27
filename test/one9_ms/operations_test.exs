@@ -199,7 +199,7 @@ defmodule One9.MsTest do
     check all ms <- t(term(), strict: true) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
-        one_of([non_negative_integer(), :all, :default!])
+        one_of([:all, non_negative_integer(), :default!])
       }) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value)
@@ -215,7 +215,7 @@ defmodule One9.MsTest do
     check all ms <- t(term(), strict: false) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
-        one_of([non_negative_integer(), :all, :default!])
+        one_of([:all, non_negative_integer(), :default!])
       }) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value, :lax)
@@ -231,7 +231,7 @@ defmodule One9.MsTest do
     check all ms <- t(term(), strict: true) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
-        one_of([non_negative_integer(), :all, :default!])
+        one_of([:all, non_negative_integer(), :default!])
       }) do
         result = case count do
           :default! -> One9.Ms.delete(ms, value, :strict)

@@ -380,11 +380,11 @@ defmodule One9.Multiset do
       ...> |> One9.Multiset.delete(:b, 999)
       One9.Multiset.new(%{a: 1})
   """
-  @spec delete(t(e), term) :: t(e) when e: term
-  @spec delete(t(e), term, :all) :: t(e) when e: term
-  @spec delete(t(e), term, non_neg_integer()) :: t(e) when e: term
-  def delete(%__MODULE__{counts: ms}, element, size \\ 1),
-    do: %__MODULE__{counts: Ms.delete(ms, element, size)}
+  @spec delete(t(e), term()) :: t(e) when e: term()
+  @spec delete(t(e), term(), :all) :: t(e) when e: term()
+  @spec delete(t(e), term(), non_neg_integer()) :: t(e) when e: term()
+  def delete(%__MODULE__{counts: ms}, element, count \\ 1),
+    do: %__MODULE__{counts: Ms.delete(ms, element, count, :strict)}
 
   @doc """
   ## Examples

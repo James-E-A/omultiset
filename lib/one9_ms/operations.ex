@@ -163,37 +163,28 @@ defmodule One9.Ms do
   See also `difference/2`.
   """
   @spec delete(t(e), term()) :: t(e) when e: term()
+  @spec delete(t(e), term(), nil) :: t(e) when e: term()
   @spec delete(t(e), term(), :strict) :: t(e) when e: term()
 
   @spec delete(t_lax(e), term()) :: t_lax(e) when e: term()
+  @spec delete(t_lax(e), term(), nil) :: t_lax(e) when e: term()
   @spec delete(t_lax(e), term(), :lax) :: t_lax(e) when e: term()
 
-  @spec delete(t(e), term(), non_neg_integer() | :all) :: t(e)
+  @spec delete(t(e), term(), :all | non_neg_integer()) :: t(e)
     when e: term()
-  @spec delete(t(e), term(), non_neg_integer() | :all, :strict) :: t(e)
-    when e: term()
-
-  @spec delete(t_lax(e), term(), non_neg_integer() | :all) :: t_lax(e)
-    when e: term()
-  @spec delete(t_lax(e), term(), non_neg_integer() | :all, :lax) :: t_lax(e)
+  @spec delete(t(e), term(), :all | non_neg_integer(), :strict) :: t(e)
     when e: term()
 
-  def delete(ms, element, count_or_strict)
+  @spec delete(t_lax(e), term(), :all | non_neg_integer()) :: t_lax(e)
+    when e: term()
+  @spec delete(t_lax(e), term(), :all | non_neg_integer(), :lax) :: t_lax(e)
+    when e: term()
 
-  def delete(ms, element, count) when is_integer(count) or count === :all,
-    do: delete(ms, element, count, :strict)
+  def delete(ms, element, count \\ 1, strict \\ nil)
 
-  def delete(ms, element, :strict), do: delete(ms, element, :all, :strict)
-
-  def delete(ms, element, :lax), do: delete(ms, element, :all, :lax)
-
-  def delete(ms, element), do: Map.delete(ms, element)
-
-  def delete(ms, element, count, strict)
-
-  def delete(ms, element, :all, :strict), do: Map.delete(ms, element)
-
-  def delete(ms, element, :all, :lax), do: Map.replace(ms, element, 0)
+  def delete(ms, element, :all, :strict) do
+    Map.delete(ms, element)
+  end
 
   def delete(ms, element, count, :strict) when is_pos_integer(count) do
     case ms do
@@ -209,7 +200,22 @@ defmodule One9.Ms do
     end
   end
 
-  def delete(ms, _, 0, :strict), do: ms
+  def delete(ms, _, 0, :strict) do
+    ms
+  end
+
+  def delete(ms, element, strict, nil) when strict === :strict or strict === :lax,
+    do: delete(ms, element, :all, strict)
+
+  def delete(ms, element, count, nil) when count === :all or is_integer(count) do
+    # we privately know that the strict-mode implementation is OK
+    # for the default implementation
+    delete(ms, element, count, :strict)
+  end
+
+  def delete(ms, element, :all, :lax) do
+    Map.replace(ms, element, 0)
+  end
 
   def delete(ms, element, count, :lax) when is_non_neg_integer(count) do
     case ms do
