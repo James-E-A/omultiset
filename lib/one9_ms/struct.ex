@@ -328,7 +328,7 @@ defmodule One9.Multiset do
   """
   @spec difference(t(e), t()) :: t(e) when e: term
   def difference(%__MODULE__{counts: lhs}, %__MODULE__{counts: rhs}),
-    do: %__MODULE__{counts: Ms.difference(lhs, rhs)}
+    do: %__MODULE__{counts: Ms.difference(lhs, rhs, :strict)}
 
   @doc """
   Return the first Multiset less any copies of elements the second Multiset shares.
@@ -337,7 +337,7 @@ defmodule One9.Multiset do
   """
   @spec difference!(t(e), t(e)) :: t(e) when e: term
   def difference!(%__MODULE__{counts: lhs}, %__MODULE__{counts: rhs}),
-    do: %__MODULE__{counts: Ms.difference!(lhs, rhs)}
+    do: %__MODULE__{counts: Ms.difference!(lhs, rhs, :strict)}
 
   @doc """
   ### Example

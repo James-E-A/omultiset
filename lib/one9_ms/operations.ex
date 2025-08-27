@@ -29,6 +29,8 @@ defmodule One9.Ms do
   import One9.Ms.Util
   require One9.Ms.Util
 
+  @compile {:inline, from_lax: 1}
+
   @doc """
   Create a well-formed multiset from any (finite) Enumerable of values.
 
@@ -45,33 +47,23 @@ defmodule One9.Ms do
 
   See also `from_counts/1`.
   """
-  @spec counts([e]) :: t(e) when e: term
-  @spec counts(Enumerable.t(e)) :: t(e) when e: term
+  @spec counts([e] | Enumerable.t(e)) :: t(e) when e: term
 
   def counts(elements \\ [])
 
-  def counts(list) when is_list(list) do
-    # Enum.reduce calls List.reverse(), but we don't care about order
-    from_list(list)
+  def counts(%MapSet{} = set) do
+    # minimum Elixir 1.14
+    MapSet.to_list(set)
+    |> Map.from_keys(1)
   end
 
   def counts(%One9.Multiset{} = multiset) do
     One9.Multiset.to_counts(multiset)
   end
 
-  def counts(%MapSet{} = set) do
-    # minimum Elixir 1.14
-    Map.from_keys(MapSet.to_list(set), 1)
+  def counts(enum) do
+    Enum.reduce(enum, %{}, &Map.update(&2, &1, 1, fn n -> n + 1 end))
   end
-
-  def counts(enumerable) do
-    Enum.reduce(enumerable, %{}, &Map.update(&2, &1, 1, fn n -> n+1 end))
-  end
-
-  defp from_list(list, acc \\ %{})
-  defp from_list([element | rest], acc),
-    do: from_list(rest, Map.update(acc, element, 1, fn n -> n+1 end))
-  defp from_list([], acc), do: acc
 
   @doc """
   A more efficient alternative to `One9.Ms.to_list(ms) |> Enum.at(index)`.
@@ -172,15 +164,18 @@ defmodule One9.Ms do
 
   @spec delete(t(e), term(), :all | non_neg_integer()) :: t(e)
     when e: term()
+  @spec delete(t(e), term(), :all | non_neg_integer(), nil) :: t(e)
+    when e: term()
   @spec delete(t(e), term(), :all | non_neg_integer(), :strict) :: t(e)
     when e: term()
 
   @spec delete(t_lax(e), term(), :all | non_neg_integer()) :: t_lax(e)
     when e: term()
+  @spec delete(t_lax(e), term(), :all | non_neg_integer(), nil) :: t_lax(e)
+    when e: term()
   @spec delete(t_lax(e), term(), :all | non_neg_integer(), :lax) :: t_lax(e)
     when e: term()
 
-  @compile {:inline, delete: 4}
   def delete(ms, element, count \\ 1, strict \\ nil)
 
   def delete(ms, element, strict, nil) when strict in [:strict, :lax],
@@ -223,6 +218,9 @@ defmodule One9.Ms do
 
       %{} ->
         ms
+
+      _ ->
+        raise ArgumentError, "bad multiset"
     end
   end
 
@@ -270,9 +268,11 @@ defmodule One9.Ms do
   See also `delete/3`, `difference!/2`.
   """
   @spec difference(t(e), t() | t_lax()) :: t(e) when e: term()
+  @spec difference(t(e), t() | t_lax(), nil) :: t(e) when e: term()
   @spec difference(t(e), t() | t_lax(), :strict) :: t(e) when e: term()
 
   @spec difference(t_lax(e), t_lax()) :: t_lax(e) when e: term()
+  @spec difference(t_lax(e), t_lax(), nil) :: t_lax(e) when e: term()
   @spec difference(t_lax(e), t_lax(), :lax) :: t_lax(e) when e: term()
 
   def difference(ms1, ms2, strict \\ nil)
@@ -313,6 +313,9 @@ defmodule One9.Ms do
 
             %{} ->
               true
+
+            _ ->
+              raise ArgumentError, "bad multiset"
           end
       end,
       ms1
@@ -379,31 +382,6 @@ defmodule One9.Ms do
 
   def difference!(ms1, ms2, strict \\ nil)
 
-  def difference!(ms1, ms2, nil) do
-    :maps.fold(
-      fn
-        element, n2, acc when is_pos_integer(n2) ->
-          case acc do
-            %{^element => n1} when n1 >= n2 ->
-              n3 = n1 - n2
-              if n3 > 0 do
-                Map.put(acc, element, n3)
-              else
-                Map.delete(acc, element)
-              end
-
-            %{} ->
-              raise KeyError, term: ms1, key: {element, n2}
-          end
-
-        _, 0, acc ->
-          acc
-      end,
-      ms1,
-      ms2
-    )
-  end
-
   def difference!(ms1, ms2, :strict) do
     :maps.fold(
       fn element, n2, acc ->
@@ -434,6 +412,36 @@ defmodule One9.Ms do
 
             %{} ->
               raise KeyError, term: ms1, key: {element, n2}
+
+            _ ->
+              raise ArgumentError, "bad multiset"
+          end
+
+        _, 0, acc ->
+          acc
+      end,
+      ms1,
+      ms2
+    )
+  end
+
+  def difference!(ms1, ms2, nil) do
+    :maps.fold(
+      fn
+        element, n2, acc when is_pos_integer(n2) ->
+          case acc do
+            %{^element => n1} when n1 >= n2 ->
+              if (n3 = n1 - n2) > 0 do
+                Map.put(acc, element, n3)
+              else
+                Map.delete(acc, element)
+              end
+
+            %{} ->
+              raise KeyError, term: ms1, key: {element, n2}
+
+            _ ->
+              raise ArgumentError, "bad multiset"
           end
 
         _, 0, acc ->
@@ -458,19 +466,28 @@ defmodule One9.Ms do
       iex> One9.Ms.empty?(%{"unicorn" => 0})
       true
 
-  See also `size/1`, `well_formed?/1`.
+  See also `size/1`, `strict?/1`.
   """
   @spec empty?(t() | t_lax()) :: boolean()
+  @spec empty?(t_lax(), :lax) :: boolean()
+
   @spec empty?(t(), :strict) :: boolean()
 
-  def empty?(ms) do
-    not Enum.any?(
-      map_iter(ms),
-      fn {_, count} when is_non_neg_integer(count) -> count > 0 end
-    )
+  def empty?(ms, strict \\ :lax)
+
+  def empty?(ms, :strict) do
+    map_size(ms) === 0
   end
 
-  def empty?(ms, :strict), do: map_size(ms) === 0
+  def empty?(ms, :lax) do
+    not Enum.any?(map_iter(ms), fn
+      {_, count} when is_non_neg_integer(count) ->
+        count > 0
+
+      _ ->
+        raise ArgumentError, "bad multiset"
+    end)
+  end
 
   @doc """
   Determine whether two multisets are equal.
@@ -496,12 +513,20 @@ defmodule One9.Ms do
       true
   """
   @spec equals?(t() | t_lax(), t() | t_lax()) :: boolean()
+  @spec equals?(t_lax(), t_lax(), :lax) :: boolean()
+
   @spec equals?(t(), t(), :strict) :: boolean()
 
-  def equals?(ms1, ms2) when map_size(ms2) > map_size(ms1),
-    do: equals?(ms2, ms1)
+  def equals?(ms1, ms2, strict \\ :lax)
 
-  def equals?(ms1, ms2) when is_map(ms1) and is_map(ms2) do
+  def equals?(ms1, ms2, :strict) do
+    ms1 === ms2
+  end
+
+  def equals?(ms1, ms2, strict) when map_size(ms2) > map_size(ms1),
+    do: equals?(ms2, ms1, strict)
+
+  def equals?(ms1, ms2, :lax) do
     # short-circuiting version of symmetric_difference.
     empty?(Enum.reduce_while(
       map_iter(ms2),
@@ -518,10 +543,8 @@ defmodule One9.Ms do
             end
         end
       end
-    ))
+    ), :lax)
   end
-
-  def equals?(ms1, ms2, :strict), do: ms1 === ms2
 
   @doc """
   Construct a well-formed multiset from any enumerable of multiplicities (`t:t0/0`).
@@ -539,13 +562,33 @@ defmodule One9.Ms do
   See also `counts/1`.
   """
   @spec from_counts(counts :: t0(e)) :: t(e) when e: term
+  @spec from_counts(counts :: t0(e), :strict) :: t(e) when e: term
 
-  def from_counts(counts \\ %{})
+  @spec from_counts(counts :: t0(e), :lax) :: t_lax(e) when e: term
 
-  def from_counts(ms) when is_non_struct_map(ms), do: from_lax(ms)
+  def from_counts(counts \\ %{}, strict \\ :strict)
 
-  def from_counts(enumerable) do
-    Enum.reduce(enumerable, %{}, fn
+  def from_counts(enum, :lax) do
+    Enum.reduce(enum, %{}, fn
+      {element, count}, acc when is_non_neg_integer(count) ->
+        case acc do
+          %{^element => n} ->
+            %{acc | element => n + count}
+
+          %{} ->
+            Map.put(acc, element, count)
+        end
+
+      _, _ ->
+        raise ArgumentError, "entries must all be {term(), non_neg_integer()}"
+    end)
+  end
+
+  def from_counts(ms, :strict) when is_non_struct_map(ms),
+    do: from_lax(ms)
+
+  def from_counts(enum, :strict) do
+    Enum.reduce(enum, %{}, fn
       {element, count}, acc when is_non_neg_integer(count) ->
         if count > 0 do
           case acc do
@@ -553,15 +596,26 @@ defmodule One9.Ms do
               %{acc | element => n + count}
 
             %{} ->
-              :maps.put(element, count, acc)
+              Map.put(acc, element, count)
           end
         else
           acc
         end
 
-      {_, _}, _acc ->
-        raise ArgumentError, "entries must all be {term, non_neg_integer}"
+      _, _ ->
+        raise ArgumentError, "entries must all be {term(), non_neg_integer()}"
     end)
+  end
+
+  @spec from_lax(t_lax(e)) :: t(e) when e: term
+  defp from_lax(ms) do
+    :maps.filter(fn # minimum OTP 18.0
+      _element, count when is_non_neg_integer(count) ->
+        count > 0
+
+      _, _ ->
+        raise ArgumentError, "entries must all be {term, non_neg_integer}"
+    end, ms)
   end
 
   @doc """
@@ -577,25 +631,19 @@ defmodule One9.Ms do
       ...> |> One9.Ms.member?("unicorn")
       false
 
-  See also `count_element/2`.
+  See also `count_element/2`, `support/1`.
   """
   @spec member?(t() | t_lax(), term()) :: boolean()
+  @spec member?(t() | t_lax(), term(), :lax) :: boolean()
   @spec member?(t(), term(), :strict) :: boolean()
+  def member?(ms, element, strict \\ :lax)
 
-  def member?(ms, element), do: count_element(ms, element) > 0
+  def member?(ms, element, :strict) do
+    is_map_key(ms, element)
+  end
 
-  def member?(ms, element, :strict), do: is_map_key(ms, element)
-
-  @doc false
-  @spec from_lax(t_lax(e)) :: t(e) when e: term
-  def from_lax(ms) do
-    :maps.filter(fn # minimum OTP 18.0
-      _element, count when is_non_neg_integer(count) ->
-        count > 0
-
-      _, _ ->
-        raise ArgumentError, "entries must all be {term, non_neg_integer}"
-    end, ms)
+  def member?(ms, element, :lax) do
+    count_element(ms, element) > 0
   end
 
   @doc """
@@ -625,24 +673,20 @@ defmodule One9.Ms do
   @spec put(t_lax(e1), e2, non_neg_integer()) :: t_lax(e1 | e2) when e1: term(), e2: term()
   @spec put(t_lax(e1), e2, non_neg_integer(), :lax) :: t_lax(e1 | e2) when e1: term(), e2: term()
 
-  def put(ms, element), do: put(ms, element, 1, :strict)
+  def put(ms, element, count \\ 1, strict \\ :strict)
 
-  def put(ms, element, count) when is_non_neg_integer(count),
-    do: put(ms, element, count, :strict)
+  def put(ms, element, strict, _) when strict in [:strict, :lax],
+    do: put(ms, element, 1, strict)
 
-  def put(ms, element, :strict), do: put(ms, element, 1, :strict)
-
-  def put(ms, element, :lax), do: put(ms, element, 1, :lax)
-
-  def put(ms, element, count, strict)
-
-  def put(ms, element, count, :strict) when is_pos_integer(count) do
-    Map.update(ms, element, count, &(&1 + count))
+  def put(ms, element, count, :strict) do
+    if count > 0 do
+      Map.update(ms, element, count, &(&1 + count))
+    else
+      ms
+    end
   end
 
-  def put(ms, _, 0, :strict), do: ms
-
-  def put(ms, element, count, :lax) when is_non_neg_integer(count) do
+  def put(ms, element, count, :lax) do
     Map.update(ms, element, count, &(&1 + count))
   end
 
@@ -731,6 +775,11 @@ defmodule One9.Ms do
 
   def support(ms, :lax), do: support(from_counts(ms), :strict)
 
+  @doc """
+  Combine two multisets additively.
+
+  See also `put/3`, `union/2`.
+  """
   @spec sum(t(e1), t(e2)) :: t(e1 | e2) when e1: term, e2: term
 
   @spec sum(t_lax(e1), t_lax(e2)) :: t_lax(e1 | e2) when e1: term, e2: term
@@ -801,40 +850,18 @@ defmodule One9.Ms do
       ...>   %{"cat" => 10, "dog" => 10}, :lax
       ...> )
       %{"cat" => 0, "dog" => 0, "unicorn" => 0}
+
+  See also `intersection/2`.
   """
   @spec symmetric_difference(t(e1), t(e2)) :: t(e1 | e2) when e1: term, e2: term
+  @spec symmetric_difference(t(e1), t(e2), nil) :: t(e1 | e2) when e1: term, e2: term
   @spec symmetric_difference(t(e1), t(e2), :strict) :: t(e1 | e2) when e1: term, e2: term
 
   @spec symmetric_difference(t_lax(e1), t_lax(e2)) :: t_lax(e1 | e2) when e1: term, e2: term
+  @spec symmetric_difference(t_lax(e1), t_lax(e2), nil) :: t_lax(e1 | e2) when e1: term, e2: term
   @spec symmetric_difference(t_lax(e1), t_lax(e2), :lax) :: t_lax(e1 | e2) when e1: term, e2: term
 
-  def symmetric_difference(ms1, ms2) when map_size(ms2) > map_size(ms1),
-    do: symmetric_difference(ms2, ms1)
-
-  def symmetric_difference(ms1, ms2) do
-    :maps.fold(
-      fn
-        element, n2, acc when n2 > 0 ->
-          case acc do
-            %{^element => n1} ->
-              n3 = abs(n1 - n2)
-              if n3 > 0 do
-                %{acc | element => abs(n1 - n2)}
-              else
-                Map.delete(acc, element)
-              end
-
-            %{} ->
-              Map.put(acc, element, n2)
-          end
-
-        _, 0, acc ->
-          acc
-      end,
-      ms1,
-      ms2
-    )
-  end
+  def symmetric_difference(ms1, ms2, strict \\ nil)
 
   def symmetric_difference(ms1, ms2, strict) when map_size(ms2) > map_size(ms1),
     do: symmetric_difference(ms2, ms1, strict)
@@ -844,9 +871,8 @@ defmodule One9.Ms do
       fn element, n2, acc ->
         case acc do
           %{^element => n1} ->
-            n3 = abs(n1 - n2)
-            if n3 > 0 do
-              %{acc | element => abs(n1 - n2)}
+            if (n3 = abs(n1 - n2)) > 0 do
+              %{acc | element => n3}
             else
               Map.delete(acc, element)
             end
@@ -869,7 +895,37 @@ defmodule One9.Ms do
 
           %{} ->
             Map.put(acc, element, n2)
+
+          _ ->
+            raise ArgumentError, "bad multiset"
         end
+      end,
+      ms1,
+      ms2
+    )
+  end
+
+  def symmetric_difference(ms1, ms2, nil) do
+    :maps.fold(
+      fn
+        element, n2, acc when n2 > 0 ->
+          case acc do
+            %{^element => n1} ->
+              if (n3 = abs(n1 - n2)) > 0 do
+                %{acc | element => n3}
+              else
+                Map.delete(acc, element)
+              end
+
+            %{} ->
+              Map.put(acc, element, n2)
+
+            _ ->
+              raise ArgumentError, "bad multiset"
+          end
+
+        _, 0, acc ->
+          acc
       end,
       ms1,
       ms2
@@ -879,39 +935,42 @@ defmodule One9.Ms do
   @doc false
   @spec to_stream(t_lax(e)) :: Enumerable.t(e) when e: term
   def to_stream(ms) do
-    map_iter(ms)
-    |> Stream.flat_map(fn {element, count} -> Stream.duplicate(element, count) end)
+    Stream.flat_map(
+      map_iter(ms),
+      fn {element, count} -> Stream.duplicate(element, count) end
+    )
   end
 
   @doc """
   Convert a multiset into a complete List of elements (including repeats).
 
-  ## Examples
-
-      iex> One9.Ms.to_list(%{a: 1, b: 2})
-      ...> |> Enum.sort()
-      [:a, :b, :b]
-
-      iex> One9.Ms.to_list([a: 1, b: 2, a: 3])
-      ...> |> Enum.sort()
-      [:a, :a, :a, :a, :b, :b]
+  See also `from_elements/1`.
   """
-  @spec to_list(t0(e)) :: [e] when e: term
+  @spec to_list(t(e) | t_lax(e)) :: [e] when e: term
 
-  def to_list(ms) when is_non_struct_map(ms) do
-    to_list(map_iter(ms))
-  end
-
-  def to_list(enumerable) do
-    Enum.reduce(enumerable, [], fn
-      {element, count}, acc ->
-        prepend_duplicate(acc, element, count)
-    end)
+  def to_list(ms) do
+    to_list(ms, :reversed)
     |> :lists.reverse()
   end
 
   @doc false
-  @spec to_tree_1(t(e)) ::
+  def to_list(ms, :reversed) do
+    :maps.fold(&prepend_duplicate(&3, &1, &2), [], ms)
+  end
+
+  @doc false
+  @spec to_tree(t_lax(e)) ::
+      :gb_trees.tree(
+        start_index :: non_neg_integer(),
+        {e, chunk_size :: non_neg_integer()}
+      )
+    when e: term
+  def to_tree(ms) do
+    to_tree_1(ms) |> elem(1)
+  end
+
+  @doc false
+  @spec to_tree_1(t_lax(e)) ::
       {
         size :: non_neg_integer(),
         :gb_trees.tree(
@@ -936,25 +995,10 @@ defmodule One9.Ms do
     {size, :gb_trees.balance(tree)}
   end
 
-  @doc false
-  @spec to_tree(t(e)) ::
-      :gb_trees.tree(
-        start_index :: non_neg_integer(),
-        {e, chunk_size :: non_neg_integer()}
-      )
-    when e: term
-  def to_tree(ms) do
-    to_tree_1(ms) |> elem(1)
-  end
-
   @doc """
   Return the union of two multisets.
 
-  Either/both operands *may* be non-well-formed.
-  Result will be well-formed whenever both operands are well-formed.
-
-      iex> One9.Ms.union(%{a: 1, b: 2}, %{b: 1, c: 3})
-      %{a: 1, b: 2, c: 3}
+  See also `sum/2`.
   """
   @spec union(t(e1), t(e2)) :: t(e1 | e2) when e1: term, e2: term
 
@@ -968,43 +1012,98 @@ defmodule One9.Ms do
   @doc """
   Return the intersection of two multisets.
 
-  Either/both operands *may* be non-well-formed.
-  Result will always be well-formed.
-
-      iex> One9.Ms.intersection(%{a: 1, b: 2, c: 3}, %{b: 1, c: 2})
-      %{b: 1, c: 2}
-
-      iex> One9.Ms.intersection(%{a: 1, b: 999, z: 999}, %{a: 3, b: 2, c: 1})
-      %{a: 1, b: 2}
+  See also `symmetric_difference/2`.
   """
   @spec intersection(t_lax(e | e1), t_lax(e | e2)) :: t(e) when e: term, e1: term, e2: term
-  def intersection(ms1, ms2) do
-    if map_size(ms1) <= map_size(ms2) do
-      # minimum OTP 24.0
-      :maps.filtermap(
-        fn
-          element, n1 ->
-            if n1 > 0 do
-              case ms2 do
-                %{^element => n2} ->
-                  if n2 < n1 do
-                    {true, n2}
-                  else
-                    true
-                  end
 
-                %{} ->
-                  false
-              end
+  def intersection(ms1, ms2, strict \\ nil)
+
+  def intersection(ms1, ms2, strict) when map_size(ms1) > map_size(ms2),
+    do: intersection(ms2, ms1, strict)
+
+  def intersection(ms1, ms2, :strict) do
+    :maps.filtermap(
+      fn element, n1 ->
+        case ms2 do
+          %{^element => n2} ->
+            if n2 < n1 do
+              {true, n2}
             else
-              false
+              true
             end
-        end,
-        ms1
-      )
-    else
-      intersection(ms2, ms1)
-    end
+
+          %{} ->
+            false
+        end
+      end,
+      ms1
+    )
+  end
+
+  def intersection(ms1, ms2, :lax) do
+    :maps.filtermap(
+      fn element, n1 ->
+        case ms2 do
+          %{^element => n2} when n2 < n1 ->
+            {true, n2}
+
+          %{} ->
+            true
+
+          _ ->
+            raise ArgumentError, "bad multiset"
+        end
+      end,
+      ms1
+    )
+  end
+
+  def intersection(ms1, ms2, nil) do
+    :maps.filtermap(
+      fn element, n1 ->
+        if n1 > 0 do
+          case ms2 do
+            %{^element => n2} ->
+              if n2 < n1 do
+                {true, n2}
+              else
+                true
+              end
+
+            %{} ->
+              false
+
+            _ ->
+              raise ArgumentError, "bad multiset"
+          end
+        else
+          false
+        end
+      end,
+      ms1
+    )
+  end
+
+  @doc """
+  Returns `true` if the multiset is `t:t/1`, or `false` if it is only `t:t_lax/1`.
+
+  Raises `ArgumentEror` if the argument is not a multiset at all.
+  """
+  @spec strict?(t()) :: true
+  @spec strict?(t_lax()) :: boolean()
+
+  def strict?(ms) when is_map(ms) do
+    Enum.all?(map_iter(ms), fn
+      {_, count} when is_non_neg_integer(count) ->
+        count > 0
+
+      _ ->
+        raise ArgumentError, "bad multiset"
+    end)
+  end
+
+  def strict?(_) do
+    raise ArgumentError, "bad multiset"
   end
 
   @doc """
@@ -1054,15 +1153,5 @@ defmodule One9.Ms do
       %{} ->
         take(ms, element, 0)
     end
-  end
-
-  @doc false
-  def well_formed?(ms) when is_map(ms) do
-    Enum.all?(
-      map_iter(ms),
-      fn {_, count} when is_non_neg_integer(count) ->
-        count > 0
-      end
-    )
   end
 end

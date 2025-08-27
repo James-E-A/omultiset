@@ -76,11 +76,17 @@ defmodule One9.MsTest do
 
   defp one_of_(datas_and_enumerables) do
     datas_and_enumerables
-    |> Enum.map(fn
-      %StreamData{} = data -> data
-      enumerable -> if Enum.empty?(enumerable), do: nil, else: StreamData.member_of(enumerable)
+    |> Enum.flat_map(fn
+      %StreamData{} = data ->
+        [data]
+
+      enum ->
+        if Enum.empty?(enum) do
+          []
+        else
+          [StreamData.member_of(enum)]
+        end
     end)
-    |> Enum.filter(& &1)
     |> one_of()
   end
 
@@ -95,7 +101,7 @@ defmodule One9.MsTest do
     check all enumerable <- enumerable(term(), finite: true) do
       result = One9.Ms.counts(enumerable)
 
-      assert One9.Ms.well_formed?(result)
+      assert One9.Ms.strict?(result)
       assert Enum.all?(result, fn {_, n} when is_integer(n) -> n > 0; _ -> false end)
     end
   end
@@ -104,17 +110,17 @@ defmodule One9.MsTest do
     check all counts <- t0(term()) do
       result = One9.Ms.from_counts(counts)
 
-      assert One9.Ms.well_formed?(result)
+      assert One9.Ms.strict?(result)
       assert Enum.all?(result, fn {_, n} when is_integer(n) -> n > 0; _ -> false end)
     end
   end
 
-  property "well_formed? basic correctness" do
-    assert One9.Ms.well_formed?(%{})
-    refute One9.Ms.well_formed?(%{42 => 0})
+  property "strict? basic correctness" do
+    assert One9.Ms.strict?(%{})
+    refute One9.Ms.strict?(%{42 => 0})
 
     check all ms <- t(term(), strict: false) do
-      assert One9.Ms.well_formed?(ms) === (0 not in Map.values(ms))
+      assert One9.Ms.strict?(ms) === (0 not in Map.values(ms))
     end
   end
 
@@ -150,7 +156,7 @@ defmodule One9.MsTest do
           count -> One9.Ms.put(ms, value, count)
         end
 
-        assert One9.Ms.well_formed?(result)
+        assert One9.Ms.strict?(result)
       end
     end
   end
@@ -180,7 +186,7 @@ defmodule One9.MsTest do
           count -> One9.Ms.put(ms, value, count, :strict)
         end
 
-        assert One9.Ms.well_formed?(result)
+        assert One9.Ms.strict?(result)
       end
     end
   end
@@ -206,7 +212,7 @@ defmodule One9.MsTest do
           count -> One9.Ms.delete(ms, value, count)
         end
 
-        assert One9.Ms.well_formed?(result)
+        assert One9.Ms.strict?(result)
       end
     end
   end
@@ -238,7 +244,7 @@ defmodule One9.MsTest do
           count -> One9.Ms.delete(ms, value, count, :strict)
         end
 
-        assert One9.Ms.well_formed?(result)
+        assert One9.Ms.strict?(result)
       end
     end
   end
@@ -251,7 +257,7 @@ defmodule One9.MsTest do
 
   property "difference result well-formed whenever inputs are well-formed" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
-      assert One9.Ms.well_formed?(One9.Ms.difference(ms1, ms2))
+      assert One9.Ms.strict?(One9.Ms.difference(ms1, ms2))
     end
   end
 
@@ -265,7 +271,7 @@ defmodule One9.MsTest do
 
   property "difference strict result always well-formed" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
-      assert One9.Ms.well_formed?(One9.Ms.difference(ms1, ms2, :strict))
+      assert One9.Ms.strict?(One9.Ms.difference(ms1, ms2, :strict))
     end
   end
 
@@ -282,7 +288,7 @@ defmodule One9.MsTest do
       t_with_subset(term(), t_strict: false)
       |> map(fn {ms1, ms2} -> {One9.Ms.from_counts(ms1), ms2} end)
     ) do
-      assert One9.Ms.well_formed?(One9.Ms.difference!(ms1, ms2))
+      assert One9.Ms.strict?(One9.Ms.difference!(ms1, ms2))
     end
   end
 
@@ -296,13 +302,13 @@ defmodule One9.MsTest do
 
   property "difference! strict result always well-formed" do
     check all {ms1, ms2} <- t_with_subset(term()) do
-      assert One9.Ms.well_formed?(One9.Ms.difference!(ms1, ms2, :strict))
+      assert One9.Ms.strict?(One9.Ms.difference!(ms1, ms2, :strict))
     end
   end
 
   property "union result well-formed whenever inputs are well-formed" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
-      assert One9.Ms.well_formed?(One9.Ms.union(ms1, ms2))
+      assert One9.Ms.strict?(One9.Ms.union(ms1, ms2))
     end
   end
 
@@ -322,13 +328,13 @@ defmodule One9.MsTest do
 
   property "symmetric_difference result well-formed whenever inputs are well-formed" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
-      assert One9.Ms.well_formed?(One9.Ms.symmetric_difference(ms1, ms2))
+      assert One9.Ms.strict?(One9.Ms.symmetric_difference(ms1, ms2))
     end
   end
 
   property "symmetric_difference strict result always well-formed" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
-      assert One9.Ms.well_formed?(One9.Ms.symmetric_difference(ms1, ms2, :strict))
+      assert One9.Ms.strict?(One9.Ms.symmetric_difference(ms1, ms2, :strict))
     end
   end
 

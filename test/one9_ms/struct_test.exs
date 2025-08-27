@@ -37,11 +37,17 @@ defmodule One9.MultisetTest do
 
   defp one_of_(datas_and_enumerables) do
     datas_and_enumerables
-    |> Enum.map(fn
-      %StreamData{} = data -> data
-      enumerable -> if Enum.empty?(enumerable), do: nil, else: StreamData.member_of(enumerable)
+    |> Enum.flat_map(fn
+      %StreamData{} = data ->
+        [data]
+
+      enum ->
+        if Enum.empty?(enum) do
+          []
+        else
+          [StreamData.member_of(enum)]
+        end
     end)
-    |> Enum.filter(&(&1))
     |> one_of()
   end
 
@@ -247,7 +253,7 @@ defmodule One9.MultisetTest do
               value <- one_of_([One9.Multiset.support(multiset), term()]) do
       result = One9.Multiset.put(multiset, value, 0)
 
-      assert One9.Ms.well_formed?(result.counts)
+      assert One9.Ms.strict?(result.counts)
       assert One9.Multiset.equals?(result, multiset)
       check all value_ <- one_of_([constant(value), One9.Multiset.support(multiset), term()]) do
         assert implies One9.Multiset.member?(result, value_),
