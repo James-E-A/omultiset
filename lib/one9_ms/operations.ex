@@ -180,37 +180,32 @@ defmodule One9.Ms do
   @spec delete(t_lax(e), term(), :all | non_neg_integer(), :lax) :: t_lax(e)
     when e: term()
 
+  @compile {:inline, delete: 4}
   def delete(ms, element, count \\ 1, strict \\ nil)
+
+  def delete(ms, element, strict, nil) when strict in [:strict, :lax],
+    do: delete(ms, element, 1, strict)
 
   def delete(ms, element, :all, :strict) do
     Map.delete(ms, element)
   end
 
-  def delete(ms, element, count, :strict) when is_pos_integer(count) do
-    case ms do
-      %{^element => n1} ->
-        if (n2 = n1 - count) > 0 do
-          %{ms | element => n2}
-        else
-          Map.delete(ms, element)
-        end
+  def delete(ms, element, count, :strict) when is_integer(count) do
+    if count > 0 do
+      case ms do
+        %{^element => n1} ->
+          if (n2 = n1 - count) > 0 do
+            %{ms | element => n2}
+          else
+            Map.delete(ms, element)
+          end
 
-      %{} ->
-        ms
+        %{} ->
+          ms
+      end
+    else
+      ms
     end
-  end
-
-  def delete(ms, _, 0, :strict) do
-    ms
-  end
-
-  def delete(ms, element, strict, nil) when strict === :strict or strict === :lax,
-    do: delete(ms, element, :all, strict)
-
-  def delete(ms, element, count, nil) when count === :all or is_integer(count) do
-    # we privately know that the strict-mode implementation is OK
-    # for the default implementation
-    delete(ms, element, count, :strict)
   end
 
   def delete(ms, element, :all, :lax) do
@@ -220,9 +215,7 @@ defmodule One9.Ms do
   def delete(ms, element, count, :lax) when is_non_neg_integer(count) do
     case ms do
       %{^element => n1} ->
-        n2 = n1 - count
-
-        if n2 > 0 do
+        if (n2 = n1 - count) > 0 do
           %{ms | element => n2}
         else
           %{ms | element => 0}
@@ -231,6 +224,12 @@ defmodule One9.Ms do
       %{} ->
         ms
     end
+  end
+
+  def delete(ms, element, count, nil) when count === :all or is_integer(count) do
+    # we privately know that the strict-mode implementation is OK
+    # for the default implementation
+    delete(ms, element, count, :strict)
   end
 
   @doc """
@@ -276,7 +275,7 @@ defmodule One9.Ms do
   @spec difference(t_lax(e), t_lax()) :: t_lax(e) when e: term()
   @spec difference(t_lax(e), t_lax(), :lax) :: t_lax(e) when e: term()
 
-  def difference(ms1, ms2, strict \\ :strict)
+  def difference(ms1, ms2, strict \\ nil)
 
   def difference(ms1, ms2, :strict) do
     # minimum OTP 24.0
@@ -318,6 +317,12 @@ defmodule One9.Ms do
       end,
       ms1
     )
+  end
+
+  def difference(ms1, ms2, nil) do
+    # we privately know that the strict-mode implementation is OK
+    # for the default implementation
+    difference(ms1, ms2, :strict)
   end
 
   @doc """
@@ -365,12 +370,16 @@ defmodule One9.Ms do
   See also `difference/2`.
   """
   @spec difference!(t(e), t(e) | t_lax(e)) :: t(e) when e: term()
+  @spec difference!(t(e), t(e) | t_lax(e), nil) :: t(e) when e: term()
   @spec difference!(t(e), t(e) | t_lax(e), :strict) :: t(e) when e: term()
 
   @spec difference!(t_lax(e), t_lax(e)) :: t_lax(e) when e: term()
+  @spec difference!(t_lax(e), t_lax(e), nil) :: t_lax(e) when e: term()
   @spec difference!(t_lax(e), t_lax(e), :lax) :: t_lax(e) when e: term()
 
-  def difference!(ms1, ms2) do
+  def difference!(ms1, ms2, strict \\ nil)
+
+  def difference!(ms1, ms2, nil) do
     :maps.fold(
       fn
         element, n2, acc when is_pos_integer(n2) ->
@@ -395,16 +404,12 @@ defmodule One9.Ms do
     )
   end
 
-  def difference!(ms1, ms2, strict)
-
   def difference!(ms1, ms2, :strict) do
     :maps.fold(
       fn element, n2, acc ->
         case acc do
           %{^element => n1} when n1 >= n2 ->
-            n3 = n1 - n2
-
-            if n3 > 0 do
+            if (n3 = n1 - n2) > 0 do
               Map.put(acc, element, n3)
             else
               Map.delete(acc, element)
@@ -421,17 +426,18 @@ defmodule One9.Ms do
 
   def difference!(ms1, ms2, :lax) do
     :maps.fold(
-      fn element, n2, acc ->
-        case acc do
-          %{} when n2 === 0 ->
-            acc
+      fn
+        element, n2, acc when is_pos_integer(n2) ->
+          case acc do
+            %{^element => n1} when n1 >= n2 ->
+              Map.put(acc, element, n1 - n2)
 
-          %{^element => n1} when n1 >= n2 ->
-            Map.put(acc, element, n1 - n2)
+            %{} ->
+              raise KeyError, term: ms1, key: {element, n2}
+          end
 
-          %{} ->
-            raise KeyError, term: ms1, key: {element, n2}
-        end
+        _, 0, acc ->
+          acc
       end,
       ms1,
       ms2

@@ -13,8 +13,9 @@ defmodule One9.Ms.MixProject do
   end
 
   defp deps do [
-    {:stream_data, "~> 1.0", only: :test},
     {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+    {:stream_data, "~> 1.0", only: [:test, :dev]},
+    {:benchee, "~> 1.0", only: :dev, runtime: false},
   ] end
 
   defp package do [
