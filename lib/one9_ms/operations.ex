@@ -789,6 +789,13 @@ defmodule One9.Ms do
     Map.merge(ms1, ms2, fn _, n1, n2 -> n1 + n2 end)
   end
 
+  @spec sum([t(e)]) :: t(e) when e: term()
+  @spec sum([t_lax(e)]) :: t_lax(e) when e: term()
+  def sum(ms_list)
+  def sum([ms1, ms2 | rest]), do: sum([sum(ms1, ms2) | rest])
+  def sum([ms]), do: ms
+  def sum([]), do: counts()
+
   @doc """
   Return the cardinality of a multiset's support.
 
