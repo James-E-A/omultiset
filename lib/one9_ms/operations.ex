@@ -94,7 +94,7 @@ defmodule One9.Ms do
       iex> %{"cat" => 10, "dog" => 10} |> One9.Ms.size()
       20
 
-  See also `support_size/1`, `count_element/2` and `empty?/1`.
+  See also `empty?/1`, `count_element/2`, and `support_size/1`.
   """
   @spec size(t() | t_lax()) :: non_neg_integer
   def size(ms) do
@@ -726,6 +726,8 @@ defmodule One9.Ms do
       ...>   %{"cat" => 10, "dog" => 10}
       ...> )
       false
+
+  See also `union/2`, `difference!/2`.
   """
   @spec subset?(t() | t_lax(), t() | t_lax()) :: boolean()
 
@@ -959,7 +961,7 @@ defmodule One9.Ms do
   @doc """
   Convert a multiset into a complete List of elements (including repeats).
 
-  See also `from_elements/1`.
+  See also `counts/1`, `size/1`.
   """
   @spec to_list(t(e) | t_lax(e)) :: [e] when e: term
 
@@ -1113,6 +1115,8 @@ defmodule One9.Ms do
   Returns `true` if the multiset is `t:t/1`, or `false` if it is only `t:t_lax/1`.
 
   Raises `ArgumentEror` if the argument is not a multiset at all.
+
+  See also `from_counts/2`.
   """
   @spec strict?(t()) :: true
   @spec strict?(t_lax()) :: boolean()
@@ -1149,6 +1153,8 @@ defmodule One9.Ms do
       iex> %{"cat" => 5, "dog" => 5}
       ...> |> One9.Ms.take("cat", 10000000000, :lax)
       {%{"cat" => 0, "dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
+
+  See also `delete/3`, `to_list/1`, and `symmetric_difference/2`.
   """
   @spec take(t(e1), e2, non_neg_integer()) :: {t(e1), [e2]} when e1: term, e2: term
   @spec take(t(e1), e2, non_neg_integer(), :strict) :: {t(e1), [e2]} when e1: term, e2: term

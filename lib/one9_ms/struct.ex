@@ -56,6 +56,8 @@ defmodule One9.Multiset do
 
   @doc """
   Create a Multiset from any (finite) Enumerable of values.
+
+  See also `One9.Ms.counts/1`.
   """
   @spec from_elements(Enumerable.t(e)) :: t(e) when e: term
   def from_elements(enumerable), do: %__MODULE__{counts: Ms.counts(enumerable)}
