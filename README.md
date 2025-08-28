@@ -8,7 +8,7 @@ implementations, plus utilities to manipulate "plain" multiplicity maps.
 ```elixir
 def deps do
   [
-    {:omultiset, "~> 0.4.0"}
+    {:omultiset, "~> 0.4.0-rc.2"}
   ]
 end
 ```
