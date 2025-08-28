@@ -1,5 +1,7 @@
 defmodule One9.MsTest.Util do
   @moduledoc false
+  require ExUnit.Assertions
+  require ExUnitProperties
 
   # https://elixirforum.com/t/conditional-import-and-lexical-scope/44204
   require One9.Ms.Util
@@ -53,7 +55,15 @@ defmodule One9.MsTest.Util do
   end
 
   def t_and_nonsubset(value, options \\ []) do
-    tuple({t(value, options), nonempty(t(value, options))})
+    t_options = case Keyword.pop(options, :t_strict, true) do
+      {t_strict, options} when is_boolean(t_strict) ->
+        options ++ [strict: t_strict]
+
+      {nil, options} ->
+        options
+    end
+
+    tuple({t(value, t_options), nonempty(t(value, t_options))})
     |> filter(fn {ms1, ms2} -> not One9.Ms.subset?(ms2, ms1) end)
   end
 
@@ -114,5 +124,21 @@ defmodule One9.MsTest.Util do
 
   def next!(enum) do
     enum |> Enum.take(1) |> hd()
+  end
+
+  @empty_range Range.new(0, -1, 1)
+  def range_within(enum) do
+    if (size = Enum.count(enum)) > 0 do
+      last_ = size - 1
+      integer(0..last_)
+      |> bind(fn first_ ->
+        tuple({constant(first_), integer(first_..last_), positive_integer()})
+      end)
+      |> map(fn {first, last, step} ->
+          Range.new(first, last, step)
+      end)
+    else
+      constant(@empty_range)
+    end
   end
 end
