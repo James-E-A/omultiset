@@ -83,6 +83,7 @@ defmodule One9.Multiset do
       ...> |> One9.Multiset.at(10**99) # pull some element out of the middle of it
       42
   """
+  @spec at(t(e), non_neg_integer()) :: e | nil when e: term
   def at(%__MODULE__{counts: ms}, index), do: Ms.at(ms, index)
 
   @doc """
@@ -96,12 +97,13 @@ defmodule One9.Multiset do
 
   See also `support_size/1`.
   """
-  @spec size(t) :: non_neg_integer
+  @spec size(t()) :: non_neg_integer()
   def size(%__MODULE__{counts: ms}), do: Ms.size(ms)
 
-  @spec empty?(t) :: boolean
+  @spec empty?(t()) :: boolean()
   def empty?(%__MODULE__{counts: ms}), do: Ms.empty?(ms, :strict)
 
+  @spec equals?(t(), t()) :: boolean()
   def equals?(%__MODULE__{counts: ms1}, %__MODULE__{counts: ms2}),
     do: Ms.equals?(ms1, ms2, :strict)
 

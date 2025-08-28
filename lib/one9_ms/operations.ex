@@ -70,7 +70,7 @@ defmodule One9.Ms do
 
   See also `to_list/1`.
   """
-  @spec at(t(e) | t_lax(e) | t0(e), non_neg_integer()) :: e when e: term
+  @spec at(t(e) | t_lax(e) | t0(e), non_neg_integer()) :: e | nil when e: term
   def at(ms, index) do
     # no need for a separate "strict" path
     case Enum.reduce_while(map_iter(ms), 0, fn
