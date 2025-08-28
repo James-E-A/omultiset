@@ -106,129 +106,33 @@ defmodule One9.MsTest do
     |> one_of()
   end
 
-  test "counts default" do
-    result = One9.Ms.counts()
-
-    assert result === %{}
-    assert One9.Ms.equals?(result, %{}, :strict)
+  test "counts/0 returns the empty multiset" do
+    assert One9.Ms.counts() === %{}
   end
 
-  property "counts always returns a well-formed result" do
+  property "counts/1 always returns a well-formed result" do
     check all enumerable <- enumerable(term(), finite: true) do
-      result = One9.Ms.counts(enumerable)
-
-      assert One9.Ms.strict?(result)
-      assert Enum.all?(result, fn {_, n} when is_integer(n) -> n > 0; _ -> false end)
+      assert One9.Ms.strict?(One9.Ms.counts(enumerable))
     end
   end
 
-  property "from_counts always returns a well-formed result" do
-    check all counts <- t0(term()) do
-      result = One9.Ms.from_counts(counts)
-
-      assert One9.Ms.strict?(result)
-      assert Enum.all?(result, fn {_, n} when is_integer(n) -> n > 0; _ -> false end)
-    end
-  end
-
-  property "strict? basic correctness" do
-    assert One9.Ms.strict?(%{})
-    refute One9.Ms.strict?(%{42 => 0})
-
-    check all ms <- t(term(), strict: false) do
-      assert One9.Ms.strict?(ms) === (0 not in Map.values(ms))
-    end
-  end
-
-  test "from_counts empty by default" do
-    result = One9.Ms.from_counts()
-
-    assert result === %{}
-    assert One9.Ms.equals?(result, %{}, :strict)
-  end
-
-  test "put/2 puts 1" do
-    assert One9.Ms.equals? \
-      %{"dog" => 3, "cat" => 1} |> One9.Ms.put("cat"),
-      %{"dog" => 3, "cat" => 2},
-      :strict
-
+  test "delete/2 deletes 1 copy" do
       check all ms <- t(term(), strict: false) do
         check all value <- one_of_([One9.Ms.support(ms), term()]) do
-          result = One9.Ms.put(ms, value)
-
-          refute One9.Ms.equals?(result, ms)
-          assert One9.Ms.equals?(result, One9.Ms.put(ms, value, 1))
+          assert One9.Ms.equals? \
+            One9.Ms.delete(ms, value),
+            One9.Ms.delete(ms, value, 1)
         end
       end
-  end
-
-  property "put/3 returns a well-formed multiset whenever input is well-formed" do
-    check all ms <- t(term(), strict: true) do
-      check all value <- one_of_([One9.Ms.support(ms), term()]),
-                count <- one_of([non_negative_integer(), :default!]) do
-        result = case count do
-          :default! -> One9.Ms.put(ms, value)
-          count -> One9.Ms.put(ms, value, count)
-        end
-
-        assert One9.Ms.strict?(result)
-      end
-    end
-  end
-
-  property "put/4 lax result preserves all keys from input" do
-    check all ms <- t(term(), strict: false) do
-      check all value <- one_of_([One9.Ms.support(ms), term()]),
-                count <- one_of([non_negative_integer(), :default!]) do
-        result = case count do
-          :default! -> One9.Ms.put(ms, value, :lax)
-          count -> One9.Ms.put(ms, value, count, :lax)
-        end
-
-        assert Enum.all?(Map.keys(ms), &Map.has_key?(result, &1))
-      end
-    end
-  end
-
-  property "put/4 strict result always well-formed" do
-    check all ms <- t(term(), strict: true) do
-      check all {value, count} <- tuple({
-        one_of_([One9.Ms.support(ms), term()]),
-        one_of([non_negative_integer(), :default!])
-      }) do
-        result = case count do
-          :default! -> One9.Ms.put(ms, value, :strict)
-          count -> One9.Ms.put(ms, value, count, :strict)
-        end
-
-        assert One9.Ms.strict?(result)
-      end
-    end
-  end
-
-  property "struct interop" do
-    check all ms <- t(term(), strict: false) do
-      assert One9.Ms.equals?(One9.Ms.counts(One9.Multiset.new(ms)), ms)
-    end
-
-    check all ms <- t(term(), strict: true) do
-      assert One9.Ms.equals?(One9.Ms.counts(One9.Multiset.new(ms)), ms, :strict)
-    end
   end
 
   property "delete/3 result well-formed whenever inputs are well-formed" do
     check all ms <- t(term(), strict: true) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
-        one_of([:all, non_negative_integer(), :default!])
+        one_of([:all, non_negative_integer()])
       }) do
-        result = case count do
-          :default! -> One9.Ms.delete(ms, value)
-          count -> One9.Ms.delete(ms, value, count)
-        end
-
-        assert One9.Ms.strict?(result)
+        assert One9.Ms.strict?(One9.Ms.delete(ms, value, count))
       end
     end
   end
@@ -237,12 +141,9 @@ defmodule One9.MsTest do
     check all ms <- t(term(), strict: false) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
-        one_of([:all, non_negative_integer(), :default!])
+        one_of([:all, non_negative_integer()])
       }) do
-        result = case count do
-          :default! -> One9.Ms.delete(ms, value, :lax)
-          count -> One9.Ms.delete(ms, value, count, :lax)
-        end
+        result = One9.Ms.delete(ms, value, count, :lax)
 
         assert Enum.all?(Map.keys(ms), &Map.has_key?(result, &1))
       end
@@ -253,14 +154,9 @@ defmodule One9.MsTest do
     check all ms <- t(term(), strict: true) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
-        one_of([:all, non_negative_integer(), :default!])
+        one_of([:all, non_negative_integer()])
       }) do
-        result = case count do
-          :default! -> One9.Ms.delete(ms, value, :strict)
-          count -> One9.Ms.delete(ms, value, count, :strict)
-        end
-
-        assert One9.Ms.strict?(result)
+        assert One9.Ms.strict?(One9.Ms.delete(ms, value, count, :strict))
       end
     end
   end
@@ -340,6 +236,72 @@ defmodule One9.MsTest do
     end
   end
 
+  test "from_counts/0 returns the empty multiset" do
+    assert One9.Ms.from_counts() === %{}
+  end
+
+  property "from_counts/1 always returns a well-formed result" do
+    check all counts <- t0(term()) do
+      assert One9.Ms.strict?(One9.Ms.from_counts(counts))
+    end
+  end
+
+  test "put/2 puts 1 copy" do
+    assert One9.Ms.equals? \
+      %{"dog" => 3, "cat" => 1} |> One9.Ms.put("cat"),
+      %{"dog" => 3, "cat" => 2},
+      :strict
+
+      check all ms <- t(term(), strict: false) do
+        check all value <- one_of_([One9.Ms.support(ms), term()]) do
+          result = One9.Ms.put(ms, value)
+
+          refute One9.Ms.equals?(result, ms)
+          assert One9.Ms.equals?(result, One9.Ms.put(ms, value, 1))
+        end
+      end
+  end
+
+  property "put/3 returns a well-formed multiset whenever input is well-formed" do
+    check all ms <- t(term(), strict: true) do
+      check all {value, count} <- tuple({
+        one_of_([One9.Ms.support(ms), term()]),
+        non_negative_integer()
+      }) do
+        assert One9.Ms.strict?(One9.Ms.put(ms, value, count))
+      end
+    end
+  end
+
+  property "put/4 lax result preserves all keys from input" do
+    check all ms <- t(term(), strict: false) do
+      check all {value, count} <- tuple({
+        one_of_([One9.Ms.support(ms), term()]),
+        non_negative_integer()
+      }) do
+        result = One9.Ms.put(ms, value, count, :lax)
+
+        assert Enum.all?(Map.keys(ms), &Map.has_key?(result, &1))
+      end
+    end
+  end
+
+  property "put/4 strict result always well-formed" do
+    check all ms <- t(term(), strict: true) do
+      check all {value, count} <- tuple({
+        one_of_([One9.Ms.support(ms), term()]),
+        one_of([non_negative_integer(), :default!])
+      }) do
+        result = case count do
+          :default! -> One9.Ms.put(ms, value, :strict)
+          count -> One9.Ms.put(ms, value, count, :strict)
+        end
+
+        assert One9.Ms.strict?(result)
+      end
+    end
+  end
+
   property "strict?/1 accepts strict inputs" do
     check all ms <- t(term(), strict: true) do
       assert One9.Ms.strict?(ms)
@@ -352,9 +314,19 @@ defmodule One9.MsTest do
     end
   end
 
-  property "strict?/1 raises on bad inputs" do
+  property "strict?/1 raises on bad multisets" do
     check all bad <- not_t() do
       assert_raise ArgumentError, fn -> One9.Ms.strict?(bad) end
+    end
+  end
+
+  property "struct interop" do
+    check all ms <- t(term(), strict: false) do
+      assert One9.Ms.equals?(One9.Ms.counts(One9.Multiset.new(ms)), ms)
+    end
+
+    check all ms <- t(term(), strict: true) do
+      assert One9.Ms.equals?(One9.Ms.counts(One9.Multiset.new(ms)), ms, :strict)
     end
   end
 

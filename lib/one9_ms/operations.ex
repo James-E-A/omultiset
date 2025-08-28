@@ -222,7 +222,7 @@ defmodule One9.Ms do
   def delete(ms, element, strict, _) when strict === :strict or strict === :lax,
     do: delete(ms, element, 1, strict)
 
-  def delete(ms, element, count, _) when count === :all or is_integer(count) do
+  def delete(ms, element, count, nil) do
     # we privately know that the strict-mode implementation is OK
     # for the default implementation
     delete(ms, element, count, :strict)
