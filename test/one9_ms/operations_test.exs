@@ -72,15 +72,15 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference/2 does NOT raise if right is not a subset of left" do
-    check all {ms1, ms2} <- t_and_nonsubset(term()) do
-      One9.Ms.difference(ms1, ms2)
-    end
-  end
-
   property "difference/2 result strict whenever inputs are strict" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
       assert One9.Ms.strict?(One9.Ms.difference(ms1, ms2))
+    end
+  end
+
+  property "difference/2 does NOT raise if right is not a subset of left" do
+    check all {ms1, ms2} <- t_and_nonsubset(term()) do
+      One9.Ms.difference(ms1, ms2)
     end
   end
 
