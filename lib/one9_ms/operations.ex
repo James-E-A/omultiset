@@ -730,10 +730,25 @@ defmodule One9.Ms do
   See also `union/2`, `difference!/2`.
   """
   @spec subset?(t() | t_lax(), t() | t_lax()) :: boolean()
+  @spec subset?(t() | t_lax(), t() | t_lax(), :lax) :: boolean()
 
   @spec subset?(t(), t(), :strict) :: boolean()
 
-  def subset?(ms1, ms2) do
+  def subset?(ms1, ms2, strict \\ :lax)
+
+  def subset?(ms1, ms2, :strict) do
+    Enum.all?(
+      map_iter(ms1),
+      fn {element, n1} when is_pos_integer(n1) ->
+        case ms2 do
+          %{^element => n2} -> n1 <= n2
+          %{} -> false
+        end
+      end
+    )
+  end
+
+  def subset?(ms1, ms2, :lax) do
     Enum.all?(
       map_iter(ms1),
       fn
@@ -745,18 +760,6 @@ defmodule One9.Ms do
 
         {_, 0} ->
           true
-      end
-    )
-  end
-
-  def subset?(ms1, ms2, :strict) do
-    Enum.all?(
-      map_iter(ms1),
-      fn {element, n1} when is_pos_integer(n1) ->
-        case ms2 do
-          %{^element => n2} -> n1 <= n2
-          %{} -> false
-        end
       end
     )
   end
@@ -779,11 +782,15 @@ defmodule One9.Ms do
   @spec support(t_lax(e)) :: [e] when e: term
   @spec support(t_lax(e), :lax) :: [e] when e: term
 
-  def support(ms), do: support(ms, :lax)
+  def support(ms, strict \\ :lax)
 
-  def support(ms, :strict), do: Map.keys(ms)
+  def support(ms, :strict) do
+    Map.keys(ms)
+  end
 
-  def support(ms, :lax), do: support(from_counts(ms), :strict)
+  def support(ms, :lax) do
+    support(from_counts(ms), :strict)
+  end
 
   @doc """
   Combine two multisets additively.
@@ -826,9 +833,16 @@ defmodule One9.Ms do
   See also `support/1`, `size/1`.
   """
   @spec support_size(t() | t_lax()) :: non_neg_integer()
+  @spec support_size(t() | t_lax(), :lax) :: non_neg_integer()
   @spec support_size(t(), :strict) :: non_neg_integer()
 
-  def support_size(ms) when is_map(ms) do
+  def support_size(ms, strict \\ :lax)
+
+  def support_size(ms, :strict) do
+    map_size(ms)
+  end
+
+  def support_size(ms, :lax) do
     :maps.fold(
       fn
         _, count, acc when is_pos_integer(count) -> acc + 1
@@ -838,8 +852,6 @@ defmodule One9.Ms do
       ms
     )
   end
-
-  def support_size(ms, :strict), do: map_size(ms)
 
   @doc """
   ## Examples
@@ -1162,24 +1174,23 @@ defmodule One9.Ms do
   @spec take(t_lax(e1), e2, non_neg_integer()) :: {t_lax(e1), [e2]} when e1: term, e2: term
   @spec take(t_lax(e1), e2, non_neg_integer(), :lax) :: {t_lax(e1), [e2]} when e1: term, e2: term
 
-  def take(ms, element, count),
-    do: take(ms, element, count, :strict)
+  def take(ms, element, count, strict \\ :strict)
 
-  def take(ms, element, count, strict) when is_non_neg_integer(count) do
+  def take(ms, element, :all, strict) do
     case ms do
-      %{^element => available} ->
-        n = min(count, available)
-        {delete(ms, element, n, strict), List.duplicate(element, n)}
+      %{^element => count} ->
+        {delete(ms, element, :all, strict), List.duplicate(element, count)}
 
       %{} ->
         take(ms, element, 0)
     end
   end
 
-  def take(ms, element, :all, strict) do
+  def take(ms, element, count, strict) do
     case ms do
-      %{^element => count} ->
-        {delete(ms, element, :all, strict), List.duplicate(element, count)}
+      %{^element => available} ->
+        n = min(count, available)
+        {delete(ms, element, n, strict), List.duplicate(element, n)}
 
       %{} ->
         take(ms, element, 0)
