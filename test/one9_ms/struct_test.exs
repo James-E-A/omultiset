@@ -38,13 +38,13 @@ defmodule One9.MultisetTest do
     quote do: not (unquote(a) and not unquote(b))
   end
 
-  property "new passthrough" do
+  property "new/1 idempotence" do
     check all multiset <- t(term()) do
       assert One9.Multiset.equals?(One9.Multiset.new(multiset), multiset)
     end
   end
 
-  property "new agrees with to_list" do
+  property "new/1 inverts to_list/1" do
     check all multiset <- t(term()) do
       assert One9.Multiset.equals? \
         One9.Multiset.new(One9.Multiset.to_list(multiset)),
@@ -52,7 +52,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "new agrees with to_counts" do
+  property "new/1 inverts to_counts/1" do
     check all multiset <- t(term()) do
       assert One9.Multiset.equals? \
         One9.Multiset.new(One9.Multiset.to_counts(multiset)),
@@ -60,7 +60,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "count_element agrees with Enum.count" do
+  property "count_element/2 agrees with Enum.count/2" do
     check all multiset <- t(term()) do
       list = One9.Multiset.to_list(multiset)
       check all value <- one_of_([One9.Multiset.support(multiset), term()]) do
@@ -70,25 +70,27 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "difference preserves length" do
+  property "difference/2 preserves length" do
     check all multiset1 <- t(term()), multiset2 <- t(term()) do
       assert One9.Multiset.size(One9.Multiset.difference(multiset1, multiset2)) <=
         One9.Multiset.size(multiset1)
     end
   end
 
-  property "difference! preserves length" do
+  property "difference!/2 preserves length" do
     check all {multiset1, multiset2} <- t_with_subset(term()) do
       assert One9.Multiset.size(One9.Multiset.difference!(multiset1, multiset2)) <=
         One9.Multiset.size(multiset1)
     end
   end
 
-  property "empty basic correctness" do
+  property "empty/1 basic correctness" do
     assert One9.Multiset.empty?(One9.Multiset.new([]))
-    assert One9.Multiset.empty?(One9.Multiset.new(%{}))
-    refute One9.Multiset.empty?(One9.Multiset.new([0]))
+    refute One9.Multiset.empty?(One9.Multiset.new([[]]))
     refute One9.Multiset.empty?(One9.Multiset.new([nil]))
+    refute One9.Multiset.empty?(One9.Multiset.new([0]))
+
+    assert One9.Multiset.empty?(One9.Multiset.new(%{}))
     assert One9.Multiset.empty?(One9.Multiset.new(%{42 => 0}))
     refute One9.Multiset.empty?(One9.Multiset.new(%{42 => 1}))
 
@@ -138,8 +140,8 @@ defmodule One9.MultisetTest do
   end
 
   @empty_range Range.new(0, -1, 1)
-  defp range_within(enumerable) do
-    if (size = Enum.count(enumerable)) > 0 do
+  defp range_within(enum) do
+    if (size = Enum.count(enum)) > 0 do
       last_ = size - 1
       integer(0..last_)
       |> bind(fn first_ ->

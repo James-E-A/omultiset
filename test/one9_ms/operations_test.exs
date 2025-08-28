@@ -12,8 +12,8 @@ defmodule One9.MsTest do
   end
 
   property "counts/1 result always strict" do
-    check all enumerable <- enumerable(term(), finite: true) do
-      assert One9.Ms.strict?(One9.Ms.counts(enumerable))
+    check all enum <- enumerable(term(), finite: true) do
+      assert One9.Ms.strict?(One9.Ms.counts(enum))
     end
   end
 
