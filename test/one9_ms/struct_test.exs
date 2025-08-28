@@ -3,6 +3,7 @@ defmodule One9.MultisetTest do
   use ExUnitProperties
 
   doctest One9.Multiset
+  import One9.MsTest.Util, only: [one_of_: 1]
 
   test "inspect" do
     assert inspect(One9.Multiset.new()) === "One9.Multiset.new([])"
@@ -12,7 +13,7 @@ defmodule One9.MultisetTest do
 
   def t(value) do
     # don't bother stress-testing with lax inputs; that's done in a separate test
-    One9.MsTest.t(value, strict: true)
+    One9.MsTest.Util.t(value, strict: true)
     |> map(&One9.Multiset.new/1)
   end
 
@@ -29,26 +30,7 @@ defmodule One9.MultisetTest do
         |> map(fn {multiset1, multiset2} ->
           {One9.Multiset.sum(multiset1, multiset2), multiset2}
         end)
-
-      {_, options} ->
-        raise RuntimeError, "unsupported options: #{inspect Keyword.keys(options)}"
     end
-  end
-
-  defp one_of_(datas_and_enumerables) do
-    datas_and_enumerables
-    |> Enum.flat_map(fn
-      %StreamData{} = data ->
-        [data]
-
-      enum ->
-        if Enum.empty?(enum) do
-          []
-        else
-          [StreamData.member_of(enum)]
-        end
-    end)
-    |> one_of()
   end
 
   #doc "https://en.wikipedia.org/wiki/Material_conditional"
@@ -216,28 +198,23 @@ defmodule One9.MultisetTest do
 
   property "put basic correctness" do
     check all multiset <- t(term()) do
-      check all value <- one_of_([One9.Multiset.support(multiset), term()]),
-                count <- one_of([non_negative_integer(), :_default]) do
-        result = case count do
-          :_default -> One9.Multiset.put(multiset, value)
-          count -> One9.Multiset.put(multiset, value, count)
-        end
-
-        assert One9.Multiset.count_element(result, value) ===
-          One9.Multiset.count_element(multiset, value) +
-            case(count, do: (:_default -> 1; count -> count))
+      check all {value, count} <- tuple({
+        one_of_([One9.Multiset.support(multiset), term()]),
+        non_negative_integer()
+      }) do
+        assert One9.Multiset.count_element(One9.Multiset.put(multiset, value, count), value) ===
+          One9.Multiset.count_element(multiset, value) + count
       end
     end
   end
 
   property "put preserves size" do
     check all multiset <- t(term()) do
-      check all value <- one_of_([One9.Multiset.support(multiset), term()]),
-                count <- one_of([non_negative_integer(), :_default]) do
-        result = case count do
-          :_default -> One9.Multiset.put(multiset, value)
-          count -> One9.Multiset.put(multiset, value, count)
-        end
+      check all {value, count} <- tuple({
+        one_of_([One9.Multiset.support(multiset), term()]),
+        non_negative_integer()
+      }) do
+        result = One9.Multiset.put(multiset, value, count)
 
         assert One9.Multiset.size(result) >= One9.Multiset.size(multiset)
         assert implies count > 0,
@@ -253,29 +230,24 @@ defmodule One9.MultisetTest do
 
       assert One9.Ms.strict?(result.counts)
       assert One9.Multiset.equals?(result, multiset)
-      check all value_ <- one_of_([constant(value), One9.Multiset.support(multiset), term()]) do
-        assert implies One9.Multiset.member?(result, value_),
-          One9.Multiset.member?(multiset, value_)
+      check all value <- one_of_([constant(value), One9.Multiset.support(multiset), term()]) do
+        assert implies One9.Multiset.member?(result, value),
+          One9.Multiset.member?(multiset, value)
       end
     end
   end
 
   property "delete basic correctness" do
     check all multiset <- t(term()) do
-      check all value <- one_of_([One9.Multiset.support(multiset), term()]),
-                count <- one_of([non_negative_integer(), :all, :_default]) do
-        result = case count do
-          :_default -> One9.Multiset.delete(multiset, value)
-          count -> One9.Multiset.delete(multiset, value, count)
-        end
+      check all {value, count} <- tuple({
+        one_of_([One9.Multiset.support(multiset), term()]),
+        one_of([:all, non_negative_integer()])
+      }) do
+        result = One9.Multiset.delete(multiset, value, count)
 
         case count do
           :all ->
             assert One9.Multiset.count_element(result, value) === 0
-
-          :_default ->
-            assert One9.Multiset.count_element(result, value) ===
-              max(One9.Multiset.count_element(multiset, value) - 1, 0)
 
           count ->
             assert One9.Multiset.count_element(result, value) ===
@@ -287,14 +259,12 @@ defmodule One9.MultisetTest do
 
   property "delete preserves size" do
     check all multiset <- t(term()) do
-      check all value <- one_of_([One9.Multiset.support(multiset), term()]),
-                count <- one_of([non_negative_integer(), :all, :_default]) do
-        result = case count do
-          :_default -> One9.Multiset.delete(multiset, value)
-          count -> One9.Multiset.delete(multiset, value, count)
-        end
-
-        assert One9.Multiset.size(result) <= One9.Multiset.size(multiset)
+      check all {value, count} <- tuple({
+        one_of_([One9.Multiset.support(multiset), term()]),
+        one_of([:all, non_negative_integer()])
+      }) do
+        assert One9.Multiset.size(One9.Multiset.delete(multiset, value, count)) <=
+          One9.Multiset.size(multiset)
       end
     end
   end
