@@ -71,7 +71,7 @@ defmodule One9.Multiset do
   def from_counts(enumerable), do: %__MODULE__{counts: Ms.from_counts(enumerable)}
 
   @doc """
-  A more efficient alternative to `Enum.to_list(ms) |> Enum.at(index)`.
+  A more efficient alternative to `Enum.to_list(mset) |> Enum.at(index)`.
 
   ## Examples
 
@@ -192,29 +192,29 @@ defmodule One9.Multiset do
   def to_tree(%__MODULE__{counts: ms}), do: Ms.to_tree(ms)
 
   defimpl Inspect, for: One9.Multiset do
-    def inspect(multiset, opts) do
-      if :math.floor(:math.sqrt(One9.Multiset.size(multiset))) <=
-        One9.Multiset.support_size(multiset)
+    def inspect(mset, opts) do
+      if :math.floor(:math.sqrt(One9.Multiset.size(mset))) <=
+        One9.Multiset.support_size(mset)
       do
-        inspect_as_list(multiset, opts)
+        inspect_as_list(mset, opts)
       else
-        inspect_as_counts(multiset, opts)
+        inspect_as_counts(mset, opts)
       end
     end
 
-    defp inspect_as_counts(multiset, opts) do
+    defp inspect_as_counts(mset, opts) do
       Inspect.Algebra.concat([
         "One9.Multiset.new(",
-        Inspect.Map.inspect(multiset.counts, opts),
+        Inspect.Map.inspect(mset.counts, opts),
         ")"
       ])
     end
 
     if Kernel.function_exported?(Inspect.Algebra, :to_doc_with_opts, 2) do
-      defp inspect_as_list(multiset, opts) do
+      defp inspect_as_list(mset, opts) do
         # https://github.com/elixir-lang/elixir/blob/v1.19.0-rc.0/lib/elixir/lib/map_set.ex#L447-L454
         {doc, %{limit: limit}} =
-          multiset
+          mset
           |> One9.Multiset.to_list()
           |> Inspect.Algebra.to_doc_with_opts(%{opts | charlists: :as_lists})
 
@@ -225,13 +225,13 @@ defmodule One9.Multiset do
         ]), %{opts | limit: limit}}
       end
     else
-      defp inspect_as_list(multiset, opts) do
+      defp inspect_as_list(mset, opts) do
         # https://github.com/elixir-lang/elixir/blob/v1.18.4/lib/elixir/lib/map_set.ex#L444-L447
         opts = %Inspect.Opts{opts | charlists: :as_lists}
 
         Inspect.Algebra.concat([
           "One9.Multiset.new(",
-          Inspect.List.inspect(One9.Multiset.to_list(multiset), opts),
+          Inspect.List.inspect(One9.Multiset.to_list(mset), opts),
           ")"
         ])
       end
@@ -239,17 +239,17 @@ defmodule One9.Multiset do
   end
 
   defimpl Enumerable, for: One9.Multiset do
-    def count(multiset), do: {:ok, One9.Multiset.size(multiset)}
+    def count(mset), do: {:ok, One9.Multiset.size(mset)}
 
-    def member?(multiset, element), do: {:ok, One9.Multiset.member?(multiset, element)}
+    def member?(mset, element), do: {:ok, One9.Multiset.member?(mset, element)}
 
-    def reduce(multiset, acc, fun) do
-      One9.Multiset.to_stream(multiset)
+    def reduce(mset, acc, fun) do
+      One9.Multiset.to_stream(mset)
       |> Enumerable.reduce(acc, fun)
     end
 
-    def slice(multiset) do
-      {size, tree} = One9.Multiset.to_tree_1(multiset)
+    def slice(mset) do
+      {size, tree} = One9.Multiset.to_tree_1(mset)
 
       {:ok, size, fn start, length, step ->
         stop = start + step * (length - 1)
@@ -274,7 +274,7 @@ defmodule One9.Multiset do
 
     # forward-looking fast path...
     # https://github.com/elixir-lang/elixir/blob/v1.19.0-rc.0/lib/elixir/lib/enum.ex#L992-L1002
-    def empty?(multiset), do: {:ok, One9.Multiset.empty?(multiset)}
+    def empty?(mset), do: {:ok, One9.Multiset.empty?(mset)}
   end
 
   @doc """
