@@ -3,10 +3,7 @@ defmodule One9.MultisetTest do
   use ExUnitProperties
   doctest One9.Multiset
 
-  import One9.MsTest.Util, except: [
-    t: 1, t: 2,
-    t_with_subset: 1, t_with_subset: 2
-  ]
+  import One9.MsTest.Util, only: [one_of_: 1, range_within: 1]
 
   test "inspect" do
     assert inspect(One9.Multiset.new()) === "One9.Multiset.new([])"
@@ -19,8 +16,9 @@ defmodule One9.MultisetTest do
     One9.MsTest.Util.t(value, strict: true)
     |> map(&One9.Multiset.new/1)
   end
+  def t(), do: t(term())
 
-  defp t_with_subset(value, options \\ []) do
+  defp t_and_subset(value, options) do
     case Keyword.pop(options, :strict, false) do
       {false, []} ->
         tuple({t(value), t(value)})
@@ -35,6 +33,9 @@ defmodule One9.MultisetTest do
         end)
     end
   end
+  def t_and_subset(options_or_value \\ [])
+  def t_and_subset(options) when is_list(options), do: t_and_subset(term(), options)
+  def t_and_subset(value), do: t_and_subset(value, [])
 
   #doc "https://en.wikipedia.org/wiki/Material_conditional"
   defmacrop implies(a, b) do
@@ -42,13 +43,13 @@ defmodule One9.MultisetTest do
   end
 
   property "new/1 idempotence" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert One9.Multiset.equals?(One9.Multiset.new(multiset), multiset)
     end
   end
 
   property "new/1 inverts to_list/1" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.new(One9.Multiset.to_list(multiset)),
         multiset
@@ -56,7 +57,7 @@ defmodule One9.MultisetTest do
   end
 
   property "new/1 inverts to_counts/1" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.new(One9.Multiset.to_counts(multiset)),
         multiset
@@ -64,7 +65,7 @@ defmodule One9.MultisetTest do
   end
 
   property "count_element/2 agrees with Enum.count/2" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       list = One9.Multiset.to_list(multiset)
       check all value <- one_of_([One9.Multiset.support(multiset), term()]) do
         assert One9.Multiset.count_element(multiset, value) ===
@@ -74,14 +75,14 @@ defmodule One9.MultisetTest do
   end
 
   property "difference/2 preserves length" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t() do
       assert One9.Multiset.size(One9.Multiset.difference(multiset1, multiset2)) <=
         One9.Multiset.size(multiset1)
     end
   end
 
   property "difference!/2 preserves length" do
-    check all {multiset1, multiset2} <- t_with_subset(term()) do
+    check all {multiset1, multiset2} <- t_and_subset() do
       assert One9.Multiset.size(One9.Multiset.difference!(multiset1, multiset2)) <=
         One9.Multiset.size(multiset1)
     end
@@ -97,7 +98,7 @@ defmodule One9.MultisetTest do
     assert One9.Multiset.empty?(One9.Multiset.new(%{42 => 0}))
     refute One9.Multiset.empty?(One9.Multiset.new(%{42 => 1}))
 
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert One9.Multiset.empty?(multiset) ===
         (One9.Multiset.size(multiset) === 0)
     end
@@ -110,17 +111,45 @@ defmodule One9.MultisetTest do
         One9.Multiset.new(list)
     end
 
-    check all ms <- One9.MsTest.Util.t(term()) do
+    check all ms <- One9.MsTest.Util.t() do
       assert One9.Multiset.equals? \
         One9.Multiset.from_counts(Enum.shuffle(ms)),
         One9.Multiset.new(ms)
     end
 
-    ##check all counts <- list_of(tuple({term(), non_negative_integer()})) do
-    check all counts <- One9.MsTest.Util.t0(term()) do
+    check all counts <- One9.MsTest.Util.t0() do
       assert One9.Multiset.equals? \
         One9.Multiset.from_counts(Enum.shuffle(counts)),
         One9.Multiset.from_counts(counts)
+    end
+  end
+
+  property "equals?/2 is NOT preserved by put/2" do
+    check all multiset <- t(), value <- term() do
+      refute One9.Multiset.equals? \
+        One9.Multiset.put(multiset, value),
+        multiset
+    end
+  end
+
+  property "equals?/2 is preserved by put/3 with 0 quantity" do
+    check all multiset <- t(), value <- term() do
+      assert One9.Multiset.equals? \
+        One9.Multiset.put(multiset, value, 0),
+        multiset
+    end
+  end
+
+  property "equals?/2 is NOT preserved by put/3 with positive quantity" do
+    check all multiset <- t() do
+      check all {value, count} <- tuple({
+        one_of_([One9.Multiset.support(multiset), term()]),
+        positive_integer()
+      }) do
+        refute One9.Multiset.equals? \
+          One9.Multiset.put(multiset, value, count),
+          multiset
+      end
     end
   end
 
@@ -142,7 +171,7 @@ defmodule One9.MultisetTest do
   end
 
   property "from_elements/1 inverts to_list/1" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.from_elements(One9.Multiset.to_list(multiset)),
         multiset
@@ -150,7 +179,7 @@ defmodule One9.MultisetTest do
   end
 
   property "to_list/1 preserves Enum.slice/2" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       check all range <- range_within(multiset) do
         assert Enum.slice(multiset, range) ===
           Enum.slice(One9.Multiset.to_list(multiset), range)
@@ -159,7 +188,7 @@ defmodule One9.MultisetTest do
   end
 
   property "intersection/2 is commutative" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.intersection(multiset1, multiset2),
         One9.Multiset.intersection(multiset2, multiset1)
@@ -167,7 +196,7 @@ defmodule One9.MultisetTest do
   end
 
   property "intersection/2 is associative" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()), multiset3 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t(), multiset3 <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.intersection(One9.Multiset.intersection(multiset1, multiset2), multiset3),
         One9.Multiset.intersection(multiset1, One9.Multiset.intersection(multiset2, multiset3))
@@ -175,7 +204,7 @@ defmodule One9.MultisetTest do
   end
 
   property "intersection/2 is idempotent" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.intersection(multiset, multiset),
         multiset
@@ -183,7 +212,7 @@ defmodule One9.MultisetTest do
   end
 
   property "intersection/2 preserves size/1" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t() do
       result = One9.Multiset.intersection(multiset1, multiset2)
 
       assert One9.Multiset.size(result) <= One9.Multiset.size(multiset1)
@@ -192,7 +221,7 @@ defmodule One9.MultisetTest do
   end
 
   property "intersection/2 produces subsets" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t() do
       result = One9.Multiset.intersection(multiset1, multiset2)
 
       assert One9.Multiset.subset?(result, multiset1)
@@ -201,7 +230,7 @@ defmodule One9.MultisetTest do
   end
 
   property "put/3 basic correctness" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Multiset.support(multiset), term()]),
         non_negative_integer()
@@ -213,7 +242,7 @@ defmodule One9.MultisetTest do
   end
 
   property "put/3 preserves size" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Multiset.support(multiset), term()]),
         non_negative_integer()
@@ -228,7 +257,7 @@ defmodule One9.MultisetTest do
   end
 
   property "put/3 adding zero copies doesn't corrupt struct" do
-    check all multiset <- t(term()),
+    check all multiset <- t(),
               value <- one_of_([One9.Multiset.support(multiset), term()]) do
       result = One9.Multiset.put(multiset, value, 0)
 
@@ -242,7 +271,7 @@ defmodule One9.MultisetTest do
   end
 
   property "delete/3 basic correctness" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Multiset.support(multiset), term()]),
         one_of([:all, non_negative_integer()])
@@ -262,7 +291,7 @@ defmodule One9.MultisetTest do
   end
 
   property "delete/3 preserves size/1" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Multiset.support(multiset), term()]),
         one_of([:all, non_negative_integer()])
@@ -274,7 +303,7 @@ defmodule One9.MultisetTest do
   end
 
   property "subset?/1 works as expected" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t() do
       assert One9.Multiset.subset?(multiset1, multiset2) ===
         Enum.all?(One9.Multiset.support(multiset1), fn value ->
           One9.Multiset.count_element(multiset1, value) <=
@@ -284,7 +313,7 @@ defmodule One9.MultisetTest do
   end
 
   property "sum/2 basic correctness" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t() do
       result = One9.Multiset.sum(multiset1, multiset2)
 
       check all value <- one_of_([
@@ -300,7 +329,7 @@ defmodule One9.MultisetTest do
   end
 
   property "sum/2 self doubles all counts" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.sum(multiset, multiset),
         One9.Multiset.new(:maps.map(fn _, count -> count*2 end, multiset.counts))
@@ -316,14 +345,14 @@ defmodule One9.MultisetTest do
   end
 
   property "support/1 agrees with MapSet.new/1" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert Enum.sort(One9.Multiset.support(multiset)) ===
         Enum.sort(MapSet.new(multiset))
     end
   end
 
   property "union basic correctness" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t() do
       result = One9.Multiset.union(multiset1, multiset2)
 
       check all element <- term() do
@@ -337,7 +366,7 @@ defmodule One9.MultisetTest do
   end
 
   property "union commutative" do
-    check all multiset1 <- t(term()), multiset2 <- t(term()) do
+    check all multiset1 <- t(), multiset2 <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.union(multiset1, multiset2),
         One9.Multiset.union(multiset2, multiset1)
@@ -345,7 +374,7 @@ defmodule One9.MultisetTest do
   end
 
   property "union idempotence" do
-    check all multiset <- t(term()) do
+    check all multiset <- t() do
       assert One9.Multiset.equals?(One9.Multiset.union(multiset, multiset), multiset)
     end
   end

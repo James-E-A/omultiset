@@ -9,7 +9,7 @@ defmodule One9.MsTest.Util do
 
   import StreamData
 
-  def t(value, options \\ []) do
+  def t(value, options) do
     case Keyword.pop(options, :strict, false) do
       {false, []} ->
         map_of(value, non_negative_integer())
@@ -22,6 +22,9 @@ defmodule One9.MsTest.Util do
         |> map(fn {ms, absent_element} -> Map.put(ms, absent_element, 0) end)
     end
   end
+  def t(options_or_value \\ [])
+  def t(options) when is_list(options), do: t(term(), options)
+  def t(value), do: t(value, [])
 
   def t0(value) do
     one_of([
@@ -34,8 +37,9 @@ defmodule One9.MsTest.Util do
       mapset_of(tuple({value, non_negative_integer()})), # arbitrary enumerable struct
     ])
   end
+  def t0(), do: t0(term())
 
-  def t_and_subset(value, options \\ []) do
+  def t_and_subset(value, options) do
     {subset_strict, options} = Keyword.pop(options, :strict, false)
     t_options = case Keyword.pop(options, :t_strict, true) do
       {t_strict, options} when is_boolean(t_strict) ->
@@ -53,8 +57,11 @@ defmodule One9.MsTest.Util do
       |> map(fn {ms1, ms2} -> {One9.Ms.sum(ms1, ms2), ms2} end)
     end
   end
+  def t_and_subset(options_or_value \\ [])
+  def t_and_subset(options) when is_list(options), do: t_and_subset(term(), options)
+  def t_and_subset(value), do: t_and_subset(value, [])
 
-  def t_and_nonsubset(value, options \\ []) do
+  def t_and_nonsubset(value, options) do
     t_options = case Keyword.pop(options, :t_strict, true) do
       {t_strict, options} when is_boolean(t_strict) ->
         options ++ [strict: t_strict]
@@ -66,6 +73,9 @@ defmodule One9.MsTest.Util do
     tuple({t(value, t_options), nonempty(t(value, t_options))})
     |> filter(fn {ms1, ms2} -> not One9.Ms.subset?(ms2, ms1) end)
   end
+  def t_and_nonsubset(options_or_value \\ [])
+  def t_and_nonsubset(options) when is_list(options), do: t_and_nonsubset(term(), options)
+  def t_and_nonsubset(value), do: t_and_nonsubset(value, [])
 
   def not_t(options \\ []) do
     case Keyword.pop(options, :strict, false) do
@@ -121,6 +131,7 @@ defmodule One9.MsTest.Util do
         ])
     end
   end
+  def enumerable(options), do: enumerable(term(), options)
 
   def next!(enum) do
     enum |> Enum.take(1) |> hd()
