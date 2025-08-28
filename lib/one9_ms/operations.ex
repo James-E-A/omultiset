@@ -75,9 +75,7 @@ defmodule One9.Ms do
     # no need for a separate "strict" path
     case Enum.reduce_while(map_iter(ms), 0, fn
       {element, count}, position ->
-        next_position = position + count
-
-        if index >= next_position do
+        if index >= (next_position = position + count) do
           {:cont, next_position}
         else
           {:halt, {:ok, element}}

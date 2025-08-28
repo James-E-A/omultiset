@@ -157,9 +157,7 @@ defmodule One9.MultisetTest do
 
   @empty_range Range.new(0, -1, 1)
   defp range_within(enumerable) do
-    size = Enum.count(enumerable)
-
-    if size > 0 do
+    if (size = Enum.count(enumerable)) > 0 do
       last_ = size - 1
       integer(0..last_)
       |> bind(fn first_ ->
