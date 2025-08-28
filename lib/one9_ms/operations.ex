@@ -178,14 +178,11 @@ defmodule One9.Ms do
 
   def delete(ms, element, count \\ 1, strict \\ nil)
 
-  def delete(ms, element, strict, nil) when strict in [:strict, :lax],
-    do: delete(ms, element, 1, strict)
-
   def delete(ms, element, :all, :strict) do
     Map.delete(ms, element)
   end
 
-  def delete(ms, element, count, :strict) when is_integer(count) do
+  def delete(ms, element, count, :strict) do
     if count > 0 do
       case ms do
         %{^element => n1} ->
@@ -224,7 +221,10 @@ defmodule One9.Ms do
     end
   end
 
-  def delete(ms, element, count, nil) when count === :all or is_integer(count) do
+  def delete(ms, element, strict, _) when strict === :strict or strict === :lax,
+    do: delete(ms, element, 1, strict)
+
+  def delete(ms, element, count, _) when count === :all or is_integer(count) do
     # we privately know that the strict-mode implementation is OK
     # for the default implementation
     delete(ms, element, count, :strict)
@@ -678,8 +678,10 @@ defmodule One9.Ms do
   @spec put(t(e1), term(), 0, :strict) :: t(e1) when e1: term()
 
   @spec put(t_lax(e1), e2) :: t_lax(e1 | e2) when e1: term(), e2: term()
-  @spec put(t_lax(e1), e2, non_neg_integer()) :: t_lax(e1 | e2) when e1: term(), e2: term()
-  @spec put(t_lax(e1), e2, non_neg_integer(), :lax) :: t_lax(e1 | e2) when e1: term(), e2: term()
+  @spec put(t_lax(e1), e2, non_neg_integer()) :: t_lax(e1 | e2)
+    when e1: term(), e2: term()
+  @spec put(t_lax(e1), e2, non_neg_integer(), :lax) :: t_lax(e1 | e2)
+    when e1: term(), e2: term()
 
   def put(ms, element, count \\ 1, strict \\ :strict)
 

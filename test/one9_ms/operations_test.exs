@@ -147,7 +147,7 @@ defmodule One9.MsTest do
     assert One9.Ms.equals?(result, %{}, :strict)
   end
 
-  test "put 1 by default" do
+  test "put/2 puts 1" do
     assert One9.Ms.equals? \
       %{"dog" => 3, "cat" => 1} |> One9.Ms.put("cat"),
       %{"dog" => 3, "cat" => 2},
@@ -163,7 +163,7 @@ defmodule One9.MsTest do
       end
   end
 
-  property "put default form returns a well-formed multiset whenever input is well-formed" do
+  property "put/3 returns a well-formed multiset whenever input is well-formed" do
     check all ms <- t(term(), strict: true) do
       check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :default!]) do
@@ -177,7 +177,7 @@ defmodule One9.MsTest do
     end
   end
 
-  property "put lax result preserves all keys from input" do
+  property "put/4 lax result preserves all keys from input" do
     check all ms <- t(term(), strict: false) do
       check all value <- one_of_([One9.Ms.support(ms), term()]),
                 count <- one_of([non_negative_integer(), :default!]) do
@@ -191,7 +191,7 @@ defmodule One9.MsTest do
     end
   end
 
-  property "put strict result always well-formed" do
+  property "put/4 strict result always well-formed" do
     check all ms <- t(term(), strict: true) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
@@ -217,7 +217,7 @@ defmodule One9.MsTest do
     end
   end
 
-  property "delete result well-formed whenever inputs are well-formed" do
+  property "delete/3 result well-formed whenever inputs are well-formed" do
     check all ms <- t(term(), strict: true) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
@@ -233,7 +233,7 @@ defmodule One9.MsTest do
     end
   end
 
-  property "delete lax result preserves all keys from input" do
+  property "delete/4 lax result preserves all keys from input" do
     check all ms <- t(term(), strict: false) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
@@ -249,7 +249,7 @@ defmodule One9.MsTest do
     end
   end
 
-  property "delete strict result always well-formed" do
+  property "delete/4 strict result always well-formed" do
     check all ms <- t(term(), strict: true) do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
@@ -265,13 +265,13 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference/3 does not raise when right is not a subset of left" do
+  property "difference/2 does not raise when right is not a subset of left" do
     check all {ms1, ms2} <- t_with_non_subset(term(), strict: false) do
       One9.Ms.difference(ms1, ms2)
     end
   end
 
-  property "difference/4 does not raise when right is not a subset of left" do
+  property "difference/3 does not raise when right is not a subset of left" do
     check all {ms1, ms2} <- t_with_non_subset(term(), strict: false) do
       One9.Ms.difference(ms1, ms2, :lax)
     end
@@ -281,13 +281,13 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference result well-formed whenever inputs are well-formed" do
+  property "difference/2 result well-formed whenever inputs are well-formed" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
       assert One9.Ms.strict?(One9.Ms.difference(ms1, ms2))
     end
   end
 
-  property "difference lax result preserves all keys from left input" do
+  property "difference/3 lax result preserves all keys from left input" do
     check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
       result = One9.Ms.difference(ms1, ms2, :lax)
 
@@ -295,7 +295,7 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference strict result always well-formed" do
+  property "difference/3 strict result always well-formed" do
     check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
       assert One9.Ms.strict?(One9.Ms.difference(ms1, ms2, :strict))
     end
