@@ -361,6 +361,29 @@ defmodule One9.MultisetTest do
     end
   end
 
+  test "take_element/3 behaves as expected" do
+    check all mset <- t() do
+      check all {value, amount} <- tuple({
+        one_of_([One9.Multiset.support(mset), term()]),
+        one_of([:all, non_negative_integer()])
+      }) do
+        original_amount = One9.Multiset.count_element(mset, value)
+        {result, taken} = One9.Multiset.take_element(mset, value, amount)
+        taken_amount = Enum.count(taken)
+        remaining_amount = One9.Multiset.count_element(result, value)
+
+        assert Enum.all?(taken, &(&1 === value))
+
+        assert taken_amount + remaining_amount === original_amount
+
+        assert implies is_integer(amount), taken_amount <= amount
+
+        assert implies is_integer(amount) and taken_amount < amount,
+          remaining_amount === 0
+      end
+    end
+  end
+
   test "union behaves as expected" do
     check all mset1 <- t(), mset2 <- t() do
       result = One9.Multiset.union(mset1, mset2)
