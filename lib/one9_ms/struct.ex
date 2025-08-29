@@ -3,9 +3,8 @@ defmodule One9.Multiset do
 
   defstruct counts: %{}
 
-  @opaque internal(value) :: One9.Ms.t_strict(value)
-  @type t(value) :: %__MODULE__{counts: internal(value)}
-  @type t :: t(term)
+  @opaque t(value) :: %__MODULE__{counts: One9.Ms.t_strict(value)}
+  @type t :: t(term())
 
   @moduledoc """
   An unordered multiplicitous container type.
