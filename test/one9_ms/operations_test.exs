@@ -291,7 +291,7 @@ defmodule One9.MsTest do
     end
   end
 
-  property "symmetric_difference/2 behaves as expected" do
+  test "symmetric_difference/2 behaves as expected" do
     check all ms1 <- t(), ms2 <- t() do
       result = One9.Ms.symmetric_difference(ms1, ms2)
 
@@ -323,7 +323,7 @@ defmodule One9.MsTest do
     end
   end
 
-  property "union/2 behaves as expected" do
+  test "union/2 behaves as expected" do
     check all ms1 <- t(), ms2 <- t() do
       result = One9.Ms.union(ms1, ms2)
 

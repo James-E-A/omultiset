@@ -84,7 +84,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "empty/1 behaves as expected" do
+  test "empty/1 behaves as expected" do
     assert One9.Multiset.empty?(One9.Multiset.new([]))
     refute One9.Multiset.empty?(One9.Multiset.new([[]]))
     refute One9.Multiset.empty?(One9.Multiset.new([nil]))
@@ -225,7 +225,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "put/3 behaves as expected" do
+  test "put/3 behaves as expected" do
     check all mset <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Multiset.support(mset), term()]),
@@ -266,7 +266,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "delete/3 behaves as expected" do
+  test "delete/3 behaves as expected" do
     check all mset <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Multiset.support(mset), term()]),
@@ -298,7 +298,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "subset?/1 behaves as expected" do
+  test "subset?/1 behaves as expected" do
     check all mset1 <- t(), mset2 <- t() do
       assert One9.Multiset.subset?(mset1, mset2) ===
         Enum.all?(One9.Multiset.support(mset1), fn value ->
@@ -317,7 +317,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "sum/2 behaves as expected" do
+  test "sum/2 behaves as expected" do
     check all mset1 <- t(), mset2 <- t() do
       result = One9.Multiset.sum(mset1, mset2)
 
@@ -361,7 +361,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "union behaves as expected" do
+  test "union behaves as expected" do
     check all mset1 <- t(), mset2 <- t() do
       result = One9.Multiset.union(mset1, mset2)
 
