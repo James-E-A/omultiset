@@ -150,7 +150,7 @@ defmodule One9.Ms do
       iex> %{"cat" => 10, "dog" => 10} |> delete("unicorn", 1, :lax)
       %{"cat" => 10, "dog" => 10}
 
-  See also `difference/2`.
+  See also `difference/2`, `take_element/3`.
   """
   @spec delete(t(e), term()) :: t(e) when e: term()
   @spec delete(t(e), term(), nil) :: t(e) when e: term()
@@ -1151,32 +1151,35 @@ defmodule One9.Ms do
   end
 
   @doc """
+  Take (up to) the given number of copies of an element from a multiset.
+
   ## Examples
 
-      iex> %{"cat" => 10, "dog" => 10}
-      ...> |> One9.Ms.take_element("cat", 2)
-      {%{"cat" => 8, "dog" => 10}, ["cat", "cat"]}
+      iex> %{"cat" => 3, "dog" => 3} |> take_element("cat", 1)
+      {%{"dog" => 3, "cat" => 2}, ["cat"]}
 
-      iex> %{"cat" => 5, "dog" => 5}
-      ...> |> One9.Ms.take_element("cat", 10000000000)
-      {%{"dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
+      iex> %{"cat" => 3, "dog" => 3} |> take_element("cat", 3)
+      {%{"dog" => 3}, ["cat", "cat", "cat"]}
 
-      iex> %{"cat" => 5, "dog" => 5}
-      ...> |> One9.Ms.take_element("cat", :all)
-      {%{"dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
+      iex> %{"cat" => 3, "dog" => 3} |> take_element("cat", 999)
+      {%{"dog" => 3}, ["cat", "cat", "cat"]}
 
-      iex> %{"cat" => 5, "dog" => 5}
-      ...> |> One9.Ms.take_element("cat", 10000000000, :lax)
-      {%{"cat" => 0, "dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
+      iex> %{"cat" => 3, "dog" => 3} |> take_element("cat", 999, :lax)
+      {%{"cat" => 0, "dog" => 3}, ["cat", "cat", "cat"]}
 
-  See also `delete/3`, `to_list/1`, and `symmetric_difference/2`.
+      iex> %{"cat" => 3, "dog" => 3} |> take_element("unicorn", 1)
+      {%{"cat" => 3, "dog" => 3}, []}
+
+      iex> %{"cat" => 3, "dog" => 3} |> take_element("unicorn", 1, :lax)
+      {%{"cat" => 3, "dog" => 3}, []}
+
+  See also `delete/3`.
   """
   @spec take_element(t(e1), e2, non_neg_integer()) :: {t(e1), [e2]} when e1: term, e2: term
   @spec take_element(t(e1), e2, non_neg_integer(), :lax) :: {t(e1), [e2]} when e1: term, e2: term
 
   @spec take_element(t_strict(e1), e2, non_neg_integer()) :: {t_strict(e1), [e2]} when e1: term, e2: term
   @spec take_element(t_strict(e1), e2, non_neg_integer(), :strict) :: {t_strict(e1), [e2]} when e1: term, e2: term
-
   def take_element(ms, element, amount \\ 1, strict \\ :strict)
 
   def take_element(ms, element, :all, :strict) do
