@@ -394,16 +394,16 @@ defmodule One9.Multiset do
   ## Examples
 
       iex> One9.Multiset.new(%{a: 2, b: 3})
-      ...> |> One9.Multiset.take(:b, 1)
+      ...> |> One9.Multiset.take_element(:b, 1)
       {One9.Multiset.new(%{a: 2, b: 2}), [:b]}
 
       iex> One9.Multiset.new(%{a: 2, b: 3})
-      ...> |> One9.Multiset.take(:b, 999)
+      ...> |> One9.Multiset.take_element(:b, 999)
       {One9.Multiset.new(%{a: 2}), [:b, :b, :b]}
   """
-  @spec take(t(e), e1, non_neg_integer()) :: {t(e), [e1]} when e: term, e1: term
-  def take(%__MODULE__{counts: ms}, element, size) do
-    {ms, l} = Ms.take(ms, element, size)
+  @spec take_element(t(e), e1, non_neg_integer()) :: {t(e), [e1]} when e: term, e1: term
+  def take_element(%__MODULE__{counts: ms}, element, size) do
+    {ms, l} = Ms.take_element(ms, element, size)
     {%__MODULE__{counts: ms}, l}
   end
 

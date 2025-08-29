@@ -1154,49 +1154,49 @@ defmodule One9.Ms do
   ## Examples
 
       iex> %{"cat" => 10, "dog" => 10}
-      ...> |> One9.Ms.take("cat", 2)
+      ...> |> One9.Ms.take_element("cat", 2)
       {%{"cat" => 8, "dog" => 10}, ["cat", "cat"]}
 
       iex> %{"cat" => 5, "dog" => 5}
-      ...> |> One9.Ms.take("cat", 10000000000)
+      ...> |> One9.Ms.take_element("cat", 10000000000)
       {%{"dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
 
       iex> %{"cat" => 5, "dog" => 5}
-      ...> |> One9.Ms.take("cat", :all)
+      ...> |> One9.Ms.take_element("cat", :all)
       {%{"dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
 
       iex> %{"cat" => 5, "dog" => 5}
-      ...> |> One9.Ms.take("cat", 10000000000, :lax)
+      ...> |> One9.Ms.take_element("cat", 10000000000, :lax)
       {%{"cat" => 0, "dog" => 5}, ["cat", "cat", "cat", "cat", "cat"]}
 
   See also `delete/3`, `to_list/1`, and `symmetric_difference/2`.
   """
-  @spec take(t_strict(e1), e2, non_neg_integer()) :: {t_strict(e1), [e2]} when e1: term, e2: term
-  @spec take(t_strict(e1), e2, non_neg_integer(), :strict) :: {t_strict(e1), [e2]} when e1: term, e2: term
+  @spec take_element(t(e1), e2, non_neg_integer()) :: {t(e1), [e2]} when e1: term, e2: term
+  @spec take_element(t(e1), e2, non_neg_integer(), :lax) :: {t(e1), [e2]} when e1: term, e2: term
 
-  @spec take(t(e1), e2, non_neg_integer()) :: {t(e1), [e2]} when e1: term, e2: term
-  @spec take(t(e1), e2, non_neg_integer(), :lax) :: {t(e1), [e2]} when e1: term, e2: term
+  @spec take_element(t_strict(e1), e2, non_neg_integer()) :: {t_strict(e1), [e2]} when e1: term, e2: term
+  @spec take_element(t_strict(e1), e2, non_neg_integer(), :strict) :: {t_strict(e1), [e2]} when e1: term, e2: term
 
-  def take(ms, element, count, strict \\ :strict)
+  def take_element(ms, element, count, strict \\ :strict)
 
-  def take(ms, element, :all, strict) do
+  def take_element(ms, element, :all, strict) do
     case ms do
       %{^element => count} ->
         {delete(ms, element, :all, strict), List.duplicate(element, count)}
 
       %{} ->
-        take(ms, element, 0)
+        take_element(ms, element, 0)
     end
   end
 
-  def take(ms, element, count, strict) do
+  def take_element(ms, element, count, strict) do
     case ms do
       %{^element => available} ->
         n = min(count, available)
         {delete(ms, element, n, strict), List.duplicate(element, n)}
 
       %{} ->
-        take(ms, element, 0)
+        take_element(ms, element, 0)
     end
   end
 end
