@@ -73,6 +73,7 @@ defmodule One9.Ms.Util do
     end
   end
 
+  # https://github.com/elixir-lang/elixir/blob/v1.19.0-rc.0/lib/elixir/lib/enum.ex#L5039-L5041
   defmacro map_iter(map) do
     quote do
       Stream.unfold(
