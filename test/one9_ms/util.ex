@@ -15,7 +15,7 @@ defmodule One9.MsTest.Util do
         map_of(value, non_negative_integer())
 
       {true, []} ->
-        map_of(value, positive_integer())
+        t_strict(value)
 
       {:never, []} ->
         tuple({t(value), value})
@@ -26,9 +26,14 @@ defmodule One9.MsTest.Util do
   def t(options) when is_list(options), do: t(term(), options)
   def t(value), do: t(value, [])
 
+  def t_strict(value) do
+    map_of(value, positive_integer())
+  end
+  def t_strict(), do: t_strict(term())
+
   def t0(value) do
     one_of([
-      t(value, strict: false),
+      t(value),
       list_of(tuple({value, non_negative_integer()})),
       map( # arbitrary enumerable
         list_of(tuple({value, non_negative_integer()})),
@@ -41,7 +46,7 @@ defmodule One9.MsTest.Util do
 
   def t_and_subset(value, options) do
     {subset_strict, options} = Keyword.pop(options, :strict, false)
-    t_options = case Keyword.pop(options, :t_strict, true) do
+    t_options = case Keyword.pop(options, :t_strict, false) do
       {t_strict, options} when is_boolean(t_strict) ->
         options ++ [strict: t_strict]
 
@@ -62,7 +67,7 @@ defmodule One9.MsTest.Util do
   def t_and_subset(value), do: t_and_subset(value, [])
 
   def t_and_nonsubset(value, options) do
-    t_options = case Keyword.pop(options, :t_strict, true) do
+    t_options = case Keyword.pop(options, :t_strict, false) do
       {t_strict, options} when is_boolean(t_strict) ->
         options ++ [strict: t_strict]
 

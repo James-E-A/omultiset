@@ -3,7 +3,7 @@ defmodule One9.Multiset do
 
   defstruct counts: %{}
 
-  @opaque internal(value) :: One9.Ms.t(value)
+  @opaque internal(value) :: One9.Ms.t_strict(value)
   @type t(value) :: %__MODULE__{counts: internal(value)}
   @type t :: t(term)
 

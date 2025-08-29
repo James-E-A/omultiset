@@ -1,25 +1,25 @@
 defmodule One9.Ms do
-  @type t(value) :: %{optional(value) => pos_integer()}
+  @type t(value) :: %{optional(value) => non_neg_integer()}
   @type t() :: t(term)
 
-  @type t_lax(value) :: %{optional(value) => non_neg_integer()}
-  @type t_lax() :: t_lax(term)
+  @type t_strict(value) :: %{optional(value) => pos_integer()}
+  @type t_strict() :: t_strict(term)
 
   @type t0(value) :: Enumerable.t({value, non_neg_integer()})
   @type t0() :: t0(term)
 
   @moduledoc """
-  Operations on simple non-struct multiplicity maps (aka "multisets", `t:t/1` and `t:t_lax/1`).
+  Operations on simple non-struct multiplicity maps (aka "multisets", `t:t/1`).
 
   Most operations have 3 modes:
 
    * `One9.Ms._func(%{...}, ...)`: "Just works", suitable for most use-cases. Returns
-     correct results regardless of whether arguments are `t:t/1` or `t:t_lax/1`, but
-     guarantees to return `t:t/1` whenever all arguments are `t:t/1`.
+     correct results regardless of whether arguments are `t:t_strict/1` or `t:t/1`, but
+     guarantees to return `t:t_strict/1` whenever all arguments are `t:t_strict/1`.
 
    * `One9.Ms._func(%{...}, ..., :strict)`: "Fast path" when invariants can be controlled,
-     such as inside a struct. Guarantees to return `t:t/1`, but invokes **UB** when any
-     arguments are not `t:t/1`.
+     such as inside a struct. Guarantees to return `t:t_strict/1`, but invokes **UB** when
+     any arguments are not `t:t_strict/1`.
 
    * `One9.Ms._func(%{...}, ..., :lax)`: Guarantees to preserve all keys from the inputs,
      even at the cost of having `0`-valued entries in the result. (Testing TODO, but I
@@ -47,7 +47,7 @@ defmodule One9.Ms do
 
   See also `from_counts/1`.
   """
-  @spec counts([e] | Enumerable.t(e)) :: t(e) when e: term
+  @spec counts([e] | Enumerable.t(e)) :: t_strict(e) when e: term
 
   def counts(elements \\ [])
 
@@ -70,7 +70,7 @@ defmodule One9.Ms do
 
   See also `to_list/1`.
   """
-  @spec at(t(e) | t_lax(e) | t0(e), non_neg_integer()) :: e | nil when e: term
+  @spec at(t(e), non_neg_integer()) :: e | nil when e: term
   def at(ms, index) do
     # no need for a separate "strict" path
     case Enum.reduce_while(map_iter(ms), 0, fn
@@ -96,7 +96,7 @@ defmodule One9.Ms do
 
   See also `empty?/1`, `count_element/2`, and `support_size/1`.
   """
-  @spec size(t() | t_lax()) :: non_neg_integer
+  @spec size(t()) :: non_neg_integer
   def size(ms) do
     # No need for a separate "strict" path
     Enum.sum(Map.values(ms))
@@ -117,7 +117,7 @@ defmodule One9.Ms do
 
   See also `size/1`.
   """
-  @spec count_element(t() | t_lax(), term()) :: non_neg_integer()
+  @spec count_element(t(), term()) :: non_neg_integer()
   def count_element(ms, element) do
     # Tentatively, no need for a separate strict path
     # because the only fast path I can think of is
@@ -154,24 +154,24 @@ defmodule One9.Ms do
   """
   @spec delete(t(e), term()) :: t(e) when e: term()
   @spec delete(t(e), term(), nil) :: t(e) when e: term()
-  @spec delete(t(e), term(), :strict) :: t(e) when e: term()
+  @spec delete(t(e), term(), :lax) :: t(e) when e: term()
 
-  @spec delete(t_lax(e), term()) :: t_lax(e) when e: term()
-  @spec delete(t_lax(e), term(), nil) :: t_lax(e) when e: term()
-  @spec delete(t_lax(e), term(), :lax) :: t_lax(e) when e: term()
+  @spec delete(t_strict(e), term()) :: t_strict(e) when e: term()
+  @spec delete(t_strict(e), term(), nil) :: t_strict(e) when e: term()
+  @spec delete(t_strict(e), term(), :strict) :: t_strict(e) when e: term()
 
   @spec delete(t(e), term(), :all | non_neg_integer()) :: t(e)
     when e: term()
   @spec delete(t(e), term(), :all | non_neg_integer(), nil) :: t(e)
     when e: term()
-  @spec delete(t(e), term(), :all | non_neg_integer(), :strict) :: t(e)
+  @spec delete(t(e), term(), :all | non_neg_integer(), :lax) :: t(e)
     when e: term()
 
-  @spec delete(t_lax(e), term(), :all | non_neg_integer()) :: t_lax(e)
+  @spec delete(t_strict(e), term(), :all | non_neg_integer()) :: t_strict(e)
     when e: term()
-  @spec delete(t_lax(e), term(), :all | non_neg_integer(), nil) :: t_lax(e)
+  @spec delete(t_strict(e), term(), :all | non_neg_integer(), nil) :: t_strict(e)
     when e: term()
-  @spec delete(t_lax(e), term(), :all | non_neg_integer(), :lax) :: t_lax(e)
+  @spec delete(t_strict(e), term(), :all | non_neg_integer(), :strict) :: t_strict(e)
     when e: term()
 
   def delete(ms, element, count \\ 1, strict \\ nil)
@@ -265,13 +265,13 @@ defmodule One9.Ms do
 
   See also `delete/3`, `difference!/2`.
   """
-  @spec difference(t(e), t() | t_lax()) :: t(e) when e: term()
-  @spec difference(t(e), t() | t_lax(), nil) :: t(e) when e: term()
-  @spec difference(t(e), t() | t_lax(), :strict) :: t(e) when e: term()
+  @spec difference(t(e), t()) :: t(e) when e: term()
+  @spec difference(t(e), t(), nil) :: t(e) when e: term()
+  @spec difference(t(e), t(), :lax) :: t(e) when e: term()
 
-  @spec difference(t_lax(e), t_lax()) :: t_lax(e) when e: term()
-  @spec difference(t_lax(e), t_lax(), nil) :: t_lax(e) when e: term()
-  @spec difference(t_lax(e), t_lax(), :lax) :: t_lax(e) when e: term()
+  @spec difference(t_strict(e), t_strict() | t()) :: t_strict(e) when e: term()
+  @spec difference(t_strict(e), t_strict() | t(), nil) :: t_strict(e) when e: term()
+  @spec difference(t_strict(e), t_strict() | t(), :strict) :: t_strict(e) when e: term()
 
   def difference(ms1, ms2, strict \\ nil)
 
@@ -370,13 +370,13 @@ defmodule One9.Ms do
 
   See also `difference/2`.
   """
-  @spec difference!(t(e), t(e) | t_lax(e)) :: t(e) when e: term()
-  @spec difference!(t(e), t(e) | t_lax(e), nil) :: t(e) when e: term()
-  @spec difference!(t(e), t(e) | t_lax(e), :strict) :: t(e) when e: term()
+  @spec difference!(t_strict(e), t_strict(e) | t(e)) :: t_strict(e) when e: term()
+  @spec difference!(t_strict(e), t_strict(e) | t(e), nil) :: t_strict(e) when e: term()
+  @spec difference!(t_strict(e), t_strict(e) | t(e), :strict) :: t_strict(e) when e: term()
 
-  @spec difference!(t_lax(e), t_lax(e)) :: t_lax(e) when e: term()
-  @spec difference!(t_lax(e), t_lax(e), nil) :: t_lax(e) when e: term()
-  @spec difference!(t_lax(e), t_lax(e), :lax) :: t_lax(e) when e: term()
+  @spec difference!(t(e), t(e)) :: t(e) when e: term()
+  @spec difference!(t(e), t(e), nil) :: t(e) when e: term()
+  @spec difference!(t(e), t(e), :lax) :: t(e) when e: term()
 
   def difference!(ms1, ms2, strict \\ nil)
 
@@ -466,10 +466,9 @@ defmodule One9.Ms do
 
   See also `size/1`, `strict?/1`.
   """
-  @spec empty?(t() | t_lax()) :: boolean()
-  @spec empty?(t_lax(), :lax) :: boolean()
-
-  @spec empty?(t(), :strict) :: boolean()
+  @spec empty?(t()) :: boolean()
+  @spec empty?(t(), :lax) :: boolean()
+  @spec empty?(t_strict(), :strict) :: boolean()
 
   def empty?(ms, strict \\ :lax)
 
@@ -514,10 +513,10 @@ defmodule One9.Ms do
       ...> )
       true
   """
-  @spec equals?(t() | t_lax(), t() | t_lax()) :: boolean()
-  @spec equals?(t_lax(), t_lax(), :lax) :: boolean()
+  @spec equals?(t(), t()) :: boolean()
+  @spec equals?(t(), t(), :lax) :: boolean()
 
-  @spec equals?(t(), t(), :strict) :: boolean()
+  @spec equals?(t_strict(), t_strict(), :strict) :: boolean()
 
   def equals?(ms1, ms2, strict \\ :lax)
 
@@ -563,11 +562,11 @@ defmodule One9.Ms do
 
   See also `counts/1`.
   """
-  @spec from_counts(counts :: t(e) | t_lax(e) | t0(e)) :: t(e) when e: term
-  @spec from_counts(counts :: t(e) | t_lax(e) | t0(e), :strict) :: t(e) when e: term
+  @spec from_counts(counts :: t(e) | t_strict(e) | t0(e)) :: t_strict(e) when e: term
+  @spec from_counts(counts :: t(e) | t_strict(e) | t0(e), :strict) :: t_strict(e) when e: term
 
-  @spec from_counts(counts :: t(e), :lax) :: t(e) when e: term
-  @spec from_counts(counts :: t_lax(e) | t0(e), :lax) :: t_lax(e) when e: term
+  @spec from_counts(counts :: t(e) | t0(e), :lax) :: t(e) when e: term
+  @spec from_counts(counts :: t_strict(e), :lax) :: t_strict(e) when e: term
 
   def from_counts(counts \\ %{}, strict \\ :strict)
 
@@ -610,7 +609,8 @@ defmodule One9.Ms do
     end)
   end
 
-  @spec from_lax(t_lax(e)) :: t(e) when e: term
+  @spec from_lax(t(e)) :: t_strict(e) when e: term
+
   defp from_lax(ms) do
     :maps.filter(fn # minimum OTP 18.0
       _element, count when is_non_neg_integer(count) ->
@@ -636,9 +636,9 @@ defmodule One9.Ms do
 
   See also `count_element/2`, `support/1`.
   """
-  @spec member?(t() | t_lax(), term()) :: boolean()
-  @spec member?(t() | t_lax(), term(), :lax) :: boolean()
-  @spec member?(t(), term(), :strict) :: boolean()
+  @spec member?(t(), term()) :: boolean()
+  @spec member?(t(), term(), :lax) :: boolean()
+  @spec member?(t_strict(), term(), :strict) :: boolean()
   def member?(ms, element, strict \\ :lax)
 
   def member?(ms, element, :strict) do
@@ -670,16 +670,16 @@ defmodule One9.Ms do
       %{"cat" => 10, "dog" => 10, "unicorn" => 0}
   """
   @spec put(t(e1), e2) :: t(e1 | e2) when e1: term(), e2: term()
-  @spec put(t(e1), e2, pos_integer()) :: t(e1 | e2) when e1: term(), e2: term()
-  @spec put(t(e1), term(), 0) :: t(e1) when e1: term()
-  @spec put(t(e1), e2, pos_integer(), :strict) :: t(e1 | e2) when e1: term(), e2: term()
-  @spec put(t(e1), term(), 0, :strict) :: t(e1) when e1: term()
+  @spec put(t(e1), e2, non_neg_integer()) :: t(e1 | e2) when e1: term(), e2: term()
+  @spec put(t(e1), e2, non_neg_integer(), :lax) :: t(e1 | e2) when e1: term(), e2: term()
 
-  @spec put(t_lax(e1), e2) :: t_lax(e1 | e2) when e1: term(), e2: term()
-  @spec put(t_lax(e1), e2, non_neg_integer()) :: t_lax(e1 | e2)
+  @spec put(t_strict(e1), e2) :: t_strict(e1 | e2) when e1: term(), e2: term()
+  @spec put(t_strict(e1), e2, pos_integer()) :: t_strict(e1 | e2)
     when e1: term(), e2: term()
-  @spec put(t_lax(e1), e2, non_neg_integer(), :lax) :: t_lax(e1 | e2)
+  @spec put(t_strict(e1), term(), 0) :: t_strict(e1) when e1: term()
+  @spec put(t_strict(e1), e2, pos_integer(), :strict) :: t_strict(e1 | e2)
     when e1: term(), e2: term()
+  @spec put(t_strict(e1), term(), 0, :strict) :: t_strict(e1) when e1: term()
 
   def put(ms, element, count \\ 1, strict \\ :strict)
 
@@ -729,10 +729,10 @@ defmodule One9.Ms do
 
   See also `union/2`, `difference!/2`.
   """
-  @spec subset?(t() | t_lax(), t() | t_lax()) :: boolean()
-  @spec subset?(t() | t_lax(), t() | t_lax(), :lax) :: boolean()
+  @spec subset?(t(), t()) :: boolean()
+  @spec subset?(t(), t(), :lax) :: boolean()
 
-  @spec subset?(t(), t(), :strict) :: boolean()
+  @spec subset?(t_strict(), t_strict(), :strict) :: boolean()
 
   def subset?(ms1, ms2, strict \\ :lax)
 
@@ -777,10 +777,8 @@ defmodule One9.Ms do
   See also `to_list/1`, `support_size/1`, `size/1`.
   """
   @spec support(t(e)) :: [e] when e: term
-  @spec support(t(e), :strict) :: [e] when e: term
-
-  @spec support(t_lax(e)) :: [e] when e: term
-  @spec support(t_lax(e), :lax) :: [e] when e: term
+  @spec support(t(e), :lax) :: [e] when e: term
+  @spec support(t_strict(e), :strict) :: [e] when e: term
 
   def support(ms, strict \\ :lax)
 
@@ -798,8 +796,7 @@ defmodule One9.Ms do
   See also `put/3`, `union/2`.
   """
   @spec sum(t(e1), t(e2)) :: t(e1 | e2) when e1: term, e2: term
-
-  @spec sum(t_lax(e1), t_lax(e2)) :: t_lax(e1 | e2) when e1: term, e2: term
+  @spec sum(t_strict(e1), t_strict(e2)) :: t_strict(e1 | e2) when e1: term, e2: term
 
   def sum(ms1, ms2) do
     # No need for a separate "strict" path
@@ -807,7 +804,7 @@ defmodule One9.Ms do
   end
 
   @spec sum([t(e)]) :: t(e) when e: term()
-  @spec sum([t_lax(e)]) :: t_lax(e) when e: term()
+  @spec sum([t_strict(e)]) :: t_strict(e) when e: term()
   def sum(ms_list)
   def sum([ms1, ms2 | rest]), do: sum([sum(ms1, ms2) | rest])
   def sum([ms]), do: ms
@@ -832,9 +829,9 @@ defmodule One9.Ms do
 
   See also `support/1`, `size/1`.
   """
-  @spec support_size(t() | t_lax()) :: non_neg_integer()
-  @spec support_size(t() | t_lax(), :lax) :: non_neg_integer()
-  @spec support_size(t(), :strict) :: non_neg_integer()
+  @spec support_size(t()) :: non_neg_integer()
+  @spec support_size(t(), :lax) :: non_neg_integer()
+  @spec support_size(t_strict(), :strict) :: non_neg_integer()
 
   def support_size(ms, strict \\ :lax)
 
@@ -884,11 +881,11 @@ defmodule One9.Ms do
   """
   @spec symmetric_difference(t(e1), t(e2)) :: t(e1 | e2) when e1: term, e2: term
   @spec symmetric_difference(t(e1), t(e2), nil) :: t(e1 | e2) when e1: term, e2: term
-  @spec symmetric_difference(t(e1), t(e2), :strict) :: t(e1 | e2) when e1: term, e2: term
+  @spec symmetric_difference(t(e1), t(e2), :lax) :: t(e1 | e2) when e1: term, e2: term
 
-  @spec symmetric_difference(t_lax(e1), t_lax(e2)) :: t_lax(e1 | e2) when e1: term, e2: term
-  @spec symmetric_difference(t_lax(e1), t_lax(e2), nil) :: t_lax(e1 | e2) when e1: term, e2: term
-  @spec symmetric_difference(t_lax(e1), t_lax(e2), :lax) :: t_lax(e1 | e2) when e1: term, e2: term
+  @spec symmetric_difference(t_strict(e1), t_strict(e2)) :: t_strict(e1 | e2) when e1: term, e2: term
+  @spec symmetric_difference(t_strict(e1), t_strict(e2), nil) :: t_strict(e1 | e2) when e1: term, e2: term
+  @spec symmetric_difference(t_strict(e1), t_strict(e2), :strict) :: t_strict(e1 | e2) when e1: term, e2: term
 
   def symmetric_difference(ms1, ms2, strict \\ nil)
 
@@ -962,7 +959,7 @@ defmodule One9.Ms do
   end
 
   @doc false
-  @spec to_stream(t_lax(e)) :: Enumerable.t(e) when e: term
+  @spec to_stream(t(e)) :: Enumerable.t(e) when e: term
   def to_stream(ms) do
     Stream.flat_map(
       map_iter(ms),
@@ -973,9 +970,15 @@ defmodule One9.Ms do
   @doc """
   Convert a multiset into a complete List of elements (including repeats).
 
+  ## Examples
+
+      iex> %{"cat" => 2, "dog" => 1}
+      ...> |> One9.Ms.to_list()
+      ["cat", "cat", "dog"]
+
   See also `counts/1`, `size/1`.
   """
-  @spec to_list(t(e) | t_lax(e)) :: [e] when e: term
+  @spec to_list(t(e)) :: [e] when e: term
 
   def to_list(ms) do
     to_list(ms, :reversed)
@@ -988,7 +991,7 @@ defmodule One9.Ms do
   end
 
   @doc false
-  @spec to_tree(t_lax(e)) ::
+  @spec to_tree(t(e)) ::
       :gb_trees.tree(
         start_index :: non_neg_integer(),
         {e, chunk_size :: non_neg_integer()}
@@ -999,7 +1002,7 @@ defmodule One9.Ms do
   end
 
   @doc false
-  @spec to_tree_1(t_lax(e)) ::
+  @spec to_tree_1(t(e)) ::
       {
         size :: non_neg_integer(),
         :gb_trees.tree(
@@ -1029,9 +1032,9 @@ defmodule One9.Ms do
 
   See also `sum/2`.
   """
-  @spec union(t(e1), t(e2)) :: t(e1 | e2) when e1: term, e2: term
+  @spec union(t_strict(e1), t_strict(e2)) :: t_strict(e1 | e2) when e1: term, e2: term
 
-  @spec union(t_lax(e1), t_lax(e2)) :: t_lax(e1 | e2) when e1: term, e2: term
+  @spec union(t(e1), t(e2)) :: t(e1 | e2) when e1: term, e2: term
 
   def union(ms1, ms2) do
     # No need for a separate "strict" path
@@ -1043,16 +1046,16 @@ defmodule One9.Ms do
 
   See also `symmetric_difference/2`.
   """
-  @spec intersection(t(e | e1), t(e | e2), nil) :: t(e)
+  @spec intersection(t_strict(e | e1), t_strict(e | e2), nil) :: t_strict(e)
     when e: term(), e1: term(), e2: term()
   @spec intersection(
-    t(e | e1) | t_lax(e | e1),
-    t(e | e2) | t_lax(e | e2), :strict) :: t(e)
+    t_strict(e | e1) | t(e | e1),
+    t_strict(e | e2) | t(e | e2), :strict) :: t_strict(e)
     when e: term(), e1: term(), e2: term()
-  @spec intersection(t(e | e1), t(e | e2), :lax) :: t(e)
+  @spec intersection(t_strict(e | e1), t_strict(e | e2), :lax) :: t_strict(e)
     when e: term(), e1: term(), e2: term()
 
-  @spec intersection(t_lax(e | e1), t_lax(e | e2), :lax) :: t_lax(e)
+  @spec intersection(t(e | e1), t(e | e2), :lax) :: t(e)
     when e: term(), e1: term(), e2: term()
 
   def intersection(ms1, ms2, strict \\ nil)
@@ -1124,14 +1127,14 @@ defmodule One9.Ms do
   end
 
   @doc """
-  Returns `true` if the multiset is `t:t/1`, or `false` if it is only `t:t_lax/1`.
+  Returns `true` if the multiset is `t:t_strict/1`, or `false` if it is *only* `t:t/1`.
 
   Raises `ArgumentEror` if the argument is not a multiset at all.
 
   See also `from_counts/2`.
   """
-  @spec strict?(t()) :: true
-  @spec strict?(t_lax()) :: boolean()
+  @spec strict?(t()) :: boolean()
+  @spec strict?(t_strict()) :: true
 
   def strict?(ms) when is_map(ms) do
     Enum.all?(map_iter(ms), fn
@@ -1168,11 +1171,11 @@ defmodule One9.Ms do
 
   See also `delete/3`, `to_list/1`, and `symmetric_difference/2`.
   """
-  @spec take(t(e1), e2, non_neg_integer()) :: {t(e1), [e2]} when e1: term, e2: term
-  @spec take(t(e1), e2, non_neg_integer(), :strict) :: {t(e1), [e2]} when e1: term, e2: term
+  @spec take(t_strict(e1), e2, non_neg_integer()) :: {t_strict(e1), [e2]} when e1: term, e2: term
+  @spec take(t_strict(e1), e2, non_neg_integer(), :strict) :: {t_strict(e1), [e2]} when e1: term, e2: term
 
-  @spec take(t_lax(e1), e2, non_neg_integer()) :: {t_lax(e1), [e2]} when e1: term, e2: term
-  @spec take(t_lax(e1), e2, non_neg_integer(), :lax) :: {t_lax(e1), [e2]} when e1: term, e2: term
+  @spec take(t(e1), e2, non_neg_integer()) :: {t(e1), [e2]} when e1: term, e2: term
+  @spec take(t(e1), e2, non_neg_integer(), :lax) :: {t(e1), [e2]} when e1: term, e2: term
 
   def take(ms, element, count, strict \\ :strict)
 

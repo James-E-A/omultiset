@@ -18,17 +18,17 @@ defmodule One9.MsTest do
   end
 
   property "counts/1 inverts One9.Multiset.new/1" do
-    check all ms <- t(strict: false) do
+    check all ms <- t() do
       assert One9.Ms.equals?(One9.Ms.counts(One9.Multiset.new(ms)), ms)
     end
 
-    check all ms <- t(strict: true) do
+    check all ms <- t_strict() do
       assert One9.Ms.equals?(One9.Ms.counts(One9.Multiset.new(ms)), ms, :strict)
     end
   end
 
   test "delete/2 deletes 1 copy" do
-    check all ms <- t(strict: false) do
+    check all ms <- t() do
       check all value <- one_of_([One9.Ms.support(ms), term()]) do
         assert One9.Ms.equals? \
           One9.Ms.delete(ms, value),
@@ -38,7 +38,7 @@ defmodule One9.MsTest do
   end
 
   property "delete/3 result strict whenever inputs are strict" do
-    check all ms <- t(strict: true) do
+    check all ms <- t_strict() do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         one_of([:all, non_negative_integer()])
@@ -72,8 +72,8 @@ defmodule One9.MsTest do
     end
   end
 
-  property "difference/2 result strict whenever inputs are strict" do
-    check all ms1 <- t(strict: true), ms2 <- t(strict: true) do
+  property "difference/2 result strict whenever left input is strict" do
+    check all ms1 <- t_strict(), ms2 <- t() do
       assert One9.Ms.strict?(One9.Ms.difference(ms1, ms2))
     end
   end
@@ -85,7 +85,7 @@ defmodule One9.MsTest do
   end
 
   property "difference/3 does NOT raise if right is not a subset of left" do
-    check all {ms1, ms2} <- t_and_nonsubset(t_strict: false) do
+    check all {ms1, ms2} <- t_and_nonsubset() do
       One9.Ms.difference(ms1, ms2, :lax)
     end
 
@@ -95,7 +95,7 @@ defmodule One9.MsTest do
   end
 
   property "difference/3 (:lax) result preserves all keys from left input" do
-    check all ms1 <- t(strict: false), ms2 <- t(strict: false) do
+    check all ms1 <- t(), ms2 <- t() do
       result = One9.Ms.difference(ms1, ms2, :lax)
 
       assert Enum.all?(Map.keys(ms1), &Map.has_key?(result, &1))
@@ -103,25 +103,22 @@ defmodule One9.MsTest do
   end
 
   property "difference/3 (:strict) result always strict" do
-    check all ms1 <- t(strict: true), ms2 <- t(strict: true) do
+    check all ms1 <- t_strict(), ms2 <- t_strict() do
       assert One9.Ms.strict?(One9.Ms.difference(ms1, ms2, :strict))
     end
   end
 
   property "difference!/2 result strict whenever left input is strict" do
-    check all {ms1, ms2} <- t_strict_and_subset() do
+    check all {ms1, ms2} <- map(
+      t_and_subset(),
+      fn {ms1_lax, ms2_lax} ->
+        ms1_strict = One9.Ms.from_counts(ms1_lax)
+        {ms1_strict, ms2_lax}
+      end
+    ) do
       assert One9.Ms.strict?(One9.Ms.difference!(ms1, ms2))
     end
   end
-
-  defp t_strict_and_subset(value) do
-    t_and_subset(value, t_strict: false)
-    |> map(fn {ms1, ms2} ->
-      # make left strict, but don't bother touching right
-      {One9.Ms.from_counts(ms1), ms2}
-    end)
-  end
-  defp t_strict_and_subset(), do: t_strict_and_subset(term())
 
   property "difference!/2 raises when right is not a subset of left" do
     check all {ms1, ms2} <- t_and_nonsubset() do
@@ -136,7 +133,7 @@ defmodule One9.MsTest do
   end
 
   property "difference!/3 does not raise when right is a subset of left" do
-    check all {ms1, ms2} <- t_and_subset(t_strict: false) do
+    check all {ms1, ms2} <- t_and_subset() do
       One9.Ms.difference!(ms1, ms2, :lax)
     end
 
@@ -146,7 +143,7 @@ defmodule One9.MsTest do
   end
 
   property "difference!/3 raises when right is not a subset of left" do
-    check all {ms1, ms2} <- t_and_nonsubset(t_strict: false) do
+    check all {ms1, ms2} <- t_and_nonsubset() do
       assert_raise KeyError, fn -> One9.Ms.difference!(ms1, ms2, :lax) end
     end
 
@@ -156,7 +153,7 @@ defmodule One9.MsTest do
   end
 
   property "difference!/3 (:lax) result preserves all keys from left input" do
-    check all {ms1, ms2} <- t_and_subset(t_strict: false) do
+    check all {ms1, ms2} <- t_and_subset() do
       result = One9.Ms.difference!(ms1, ms2, :lax)
 
       assert Enum.all?(Map.keys(ms1), &Map.has_key?(result, &1))
@@ -164,7 +161,7 @@ defmodule One9.MsTest do
   end
 
   property "difference!/3 (:strict) result always strict" do
-    check all {ms1, ms2} <- t_and_subset() do
+    check all {ms1, ms2} <- t_and_subset(t_strict: true) do
       assert One9.Ms.strict?(One9.Ms.difference!(ms1, ms2, :strict))
     end
   end
@@ -185,7 +182,7 @@ defmodule One9.MsTest do
       |> One9.Ms.put("cat") ===
         %{"dog" => 3, "cat" => 2}
 
-    check all ms <- t(strict: false) do
+    check all ms <- t() do
       check all value <- one_of_([One9.Ms.support(ms), term()]) do
         result = One9.Ms.put(ms, value)
 
@@ -196,7 +193,7 @@ defmodule One9.MsTest do
   end
 
   property "put/3 returns a strict multiset whenever input is strict" do
-    check all ms <- t(strict: true) do
+    check all ms <- t_strict() do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         non_negative_integer()
@@ -207,7 +204,7 @@ defmodule One9.MsTest do
   end
 
   property "put/4 (:lax) result preserves all keys from input" do
-    check all ms <- t(strict: false) do
+    check all ms <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         non_negative_integer()
@@ -220,7 +217,7 @@ defmodule One9.MsTest do
   end
 
   property "put/4 (:strict) result always strict" do
-    check all ms <- t(strict: true) do
+    check all ms <- t_strict() do
       check all {value, count} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         one_of([non_negative_integer(), :default!])
@@ -241,7 +238,7 @@ defmodule One9.MsTest do
     assert One9.Ms.strict?(%{nil => 1})
     assert One9.Ms.strict?(%{0 => 1})
 
-    check all ms <- t(strict: true) do
+    check all ms <- t_strict() do
       assert One9.Ms.strict?(ms)
     end
   end
@@ -269,7 +266,7 @@ defmodule One9.MsTest do
   end
 
   property "symmetric_difference/2 basic correctness" do
-    check all ms1 <- t(term()), ms2 <- t(term()) do
+    check all ms1 <- t(), ms2 <- t() do
       result = One9.Ms.symmetric_difference(ms1, ms2)
 
       check all value <- one_of_([One9.Ms.support(ms1), One9.Ms.support(ms2), term()]) do
@@ -280,19 +277,19 @@ defmodule One9.MsTest do
   end
 
   property "symmetric_difference/2 result strict whenever inputs are strict" do
-    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+    check all ms1 <- t_strict(), ms2 <- t_strict() do
       assert One9.Ms.strict?(One9.Ms.symmetric_difference(ms1, ms2))
     end
   end
 
   property "symmetric_difference/3 (:strict) result always strict" do
-    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+    check all ms1 <- t_strict(), ms2 <- t_strict() do
       assert One9.Ms.strict?(One9.Ms.symmetric_difference(ms1, ms2, :strict))
     end
   end
 
   property "symmetric_difference/3 (:lax) result preserves all keys from inputs" do
-    check all ms1 <- t(term(), strict: false), ms2 <- t(term(), strict: false) do
+    check all ms1 <- t(), ms2 <- t() do
       result = One9.Ms.symmetric_difference(ms1, ms2, :lax)
 
       assert Enum.all?(Map.keys(ms1), &Map.has_key?(result, &1))
@@ -301,7 +298,7 @@ defmodule One9.MsTest do
   end
 
   property "union/2 result strict whenever inputs are strict" do
-    check all ms1 <- t(term(), strict: true), ms2 <- t(term(), strict: true) do
+    check all ms1 <- t_strict(), ms2 <- t_strict() do
       assert One9.Ms.strict?(One9.Ms.union(ms1, ms2))
     end
   end
