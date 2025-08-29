@@ -369,8 +369,8 @@ defmodule One9.Multiset do
   """
   @spec put(t(e1), e2) :: t(e1 | e2) when e1: term, e2: term
   @spec put(t(e1), e2, pos_integer()) :: t(e1 | e2) when e1: term, e2: term
-  def put(%__MODULE__{counts: ms}, element, size \\ 1),
-    do: %__MODULE__{counts: Ms.put(ms, element, size, :strict)}
+  def put(%__MODULE__{counts: ms}, element, amount \\ 1),
+    do: %__MODULE__{counts: Ms.put(ms, element, amount, :strict)}
 
   @doc """
   ## Examples
@@ -386,8 +386,8 @@ defmodule One9.Multiset do
   @spec delete(t(e), term()) :: t(e) when e: term()
   @spec delete(t(e), term(), :all) :: t(e) when e: term()
   @spec delete(t(e), term(), non_neg_integer()) :: t(e) when e: term()
-  def delete(%__MODULE__{counts: ms}, element, count \\ 1),
-    do: %__MODULE__{counts: Ms.delete(ms, element, count, :strict)}
+  def delete(%__MODULE__{counts: ms}, element, amount \\ 1),
+    do: %__MODULE__{counts: Ms.delete(ms, element, amount, :strict)}
 
   @doc """
   ## Examples
@@ -401,8 +401,8 @@ defmodule One9.Multiset do
       {One9.Multiset.new(%{a: 2}), [:b, :b, :b]}
   """
   @spec take_element(t(e), e1, non_neg_integer()) :: {t(e), [e1]} when e: term, e1: term
-  def take_element(%__MODULE__{counts: ms}, element, size) do
-    {ms, l} = Ms.take_element(ms, element, size, :strict)
+  def take_element(%__MODULE__{counts: ms}, element, amount) do
+    {ms, l} = Ms.take_element(ms, element, amount, :strict)
     {%__MODULE__{counts: ms}, l}
   end
 

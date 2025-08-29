@@ -74,8 +74,8 @@ defmodule One9.Ms do
   def at(ms, index) do
     # no need for a separate "strict" path
     case Enum.reduce_while(map_iter(ms), 0, fn
-      {element, count}, position ->
-        if index >= (next_position = position + count) do
+      {element, amount}, position ->
+        if index >= (next_position = position + amount) do
           {:cont, next_position}
         else
           {:halt, {:ok, element}}
@@ -174,17 +174,17 @@ defmodule One9.Ms do
   @spec delete(t_strict(e), term(), :all | non_neg_integer(), :strict) :: t_strict(e)
     when e: term()
 
-  def delete(ms, element, count \\ 1, strict \\ nil)
+  def delete(ms, element, amount \\ 1, strict \\ nil)
 
   def delete(ms, element, :all, :strict) do
     Map.delete(ms, element)
   end
 
-  def delete(ms, element, count, :strict) do
-    if count > 0 do
+  def delete(ms, element, amount, :strict) do
+    if amount > 0 do
       case ms do
         %{^element => n1} ->
-          if (n2 = n1 - count) > 0 do
+          if (n2 = n1 - amount) > 0 do
             %{ms | element => n2}
           else
             Map.delete(ms, element)
@@ -202,10 +202,10 @@ defmodule One9.Ms do
     Map.replace(ms, element, 0)
   end
 
-  def delete(ms, element, count, :lax) when is_non_neg_integer(count) do
+  def delete(ms, element, amount, :lax) when is_non_neg_integer(amount) do
     case ms do
       %{^element => n1} ->
-        if (n2 = n1 - count) > 0 do
+        if (n2 = n1 - amount) > 0 do
           %{ms | element => n2}
         else
           %{ms | element => 0}
@@ -222,10 +222,10 @@ defmodule One9.Ms do
   def delete(ms, element, strict, _) when strict === :strict or strict === :lax,
     do: delete(ms, element, 1, strict)
 
-  def delete(ms, element, count, nil) do
+  def delete(ms, element, amount, nil) do
     # we privately know that the strict-mode implementation is OK
     # for the default implementation
-    delete(ms, element, count, :strict)
+    delete(ms, element, amount, :strict)
   end
 
   @doc """
@@ -478,8 +478,8 @@ defmodule One9.Ms do
 
   def empty?(ms, :lax) when is_map(ms) do
     not Enum.any?(map_iter(ms), fn
-      {_, count} when is_non_neg_integer(count) ->
-        count > 0
+      {_, amount} when is_non_neg_integer(amount) ->
+        amount > 0
 
       _ ->
         raise ArgumentError, "bad multiset"
@@ -572,13 +572,13 @@ defmodule One9.Ms do
 
   def from_counts(enum, :lax) do
     Enum.reduce(enum, %{}, fn
-      {element, count}, acc when is_non_neg_integer(count) ->
+      {element, amount}, acc when is_non_neg_integer(amount) ->
         case acc do
           %{^element => n} ->
-            %{acc | element => n + count}
+            %{acc | element => n + amount}
 
           %{} ->
-            Map.put(acc, element, count)
+            Map.put(acc, element, amount)
         end
 
       _, _ ->
@@ -591,14 +591,14 @@ defmodule One9.Ms do
 
   def from_counts(enum, :strict) do
     Enum.reduce(enum, %{}, fn
-      {element, count}, acc when is_non_neg_integer(count) ->
-        if count > 0 do
+      {element, amount}, acc when is_non_neg_integer(amount) ->
+        if amount > 0 do
           case acc do
             %{^element => n} ->
-              %{acc | element => n + count}
+              %{acc | element => n + amount}
 
             %{} ->
-              Map.put(acc, element, count)
+              Map.put(acc, element, amount)
           end
         else
           acc
@@ -613,8 +613,8 @@ defmodule One9.Ms do
 
   defp from_lax(ms) do
     :maps.filter(fn # minimum OTP 18.0
-      _element, count when is_non_neg_integer(count) ->
-        count > 0
+      _element, amount when is_non_neg_integer(amount) ->
+        amount > 0
 
       _, _ ->
         raise ArgumentError, "entries must all be {term, non_neg_integer}"
@@ -681,18 +681,18 @@ defmodule One9.Ms do
     when e1: term(), e2: term()
   @spec put(t_strict(e1), term(), 0, :strict) :: t_strict(e1) when e1: term()
 
-  def put(ms, element, count \\ 1, strict \\ :strict)
+  def put(ms, element, amount \\ 1, strict \\ :strict)
 
-  def put(ms, element, count, :strict) when is_integer(count) do
-    if count > 0 do
-      Map.update(ms, element, count, &(&1 + count))
+  def put(ms, element, amount, :strict) when is_integer(amount) do
+    if amount > 0 do
+      Map.update(ms, element, amount, &(&1 + amount))
     else
       ms
     end
   end
 
-  def put(ms, element, count, :lax) when is_non_neg_integer(count) do
-    Map.update(ms, element, count, &(&1 + count))
+  def put(ms, element, amount, :lax) when is_non_neg_integer(amount) do
+    Map.update(ms, element, amount, &(&1 + amount))
   end
 
   def put(ms, element, strict, _) when strict in [:strict, :lax],
@@ -842,7 +842,7 @@ defmodule One9.Ms do
   def support_size(ms, :lax) do
     :maps.fold(
       fn
-        _, count, acc when is_pos_integer(count) -> acc + 1
+        _, amount, acc when is_pos_integer(amount) -> acc + 1
         _, 0, acc -> acc
       end,
       0,
@@ -963,7 +963,7 @@ defmodule One9.Ms do
   def to_stream(ms) do
     Stream.flat_map(
       map_iter(ms),
-      fn {element, count} -> Stream.duplicate(element, count) end
+      fn {element, amount} -> Stream.duplicate(element, amount) end
     )
   end
 
@@ -1016,10 +1016,10 @@ defmodule One9.Ms do
       Enum.reduce(
         map_iter(ms),
         {0, :gb_trees.empty()},
-        fn {element, count}, {running_count, tree} ->
+        fn {element, amount}, {running_count, tree} ->
           {
-            running_count + count,
-            :gb_trees.insert(running_count, {element, count}, tree)
+            running_count + amount,
+            :gb_trees.insert(running_count, {element, amount}, tree)
           }
         end
       )
@@ -1138,8 +1138,8 @@ defmodule One9.Ms do
 
   def strict?(ms) when is_map(ms) do
     Enum.reduce(map_iter(ms), true, fn
-      {_, count}, acc when is_non_neg_integer(count) ->
-        acc and (count > 0)
+      {_, amount}, acc when is_non_neg_integer(amount) ->
+        acc and (amount > 0)
 
       _, _ ->
         raise ArgumentError, "bad multiset"
@@ -1177,22 +1177,22 @@ defmodule One9.Ms do
   @spec take_element(t_strict(e1), e2, non_neg_integer()) :: {t_strict(e1), [e2]} when e1: term, e2: term
   @spec take_element(t_strict(e1), e2, non_neg_integer(), :strict) :: {t_strict(e1), [e2]} when e1: term, e2: term
 
-  def take_element(ms, element, count, strict \\ :strict)
+  def take_element(ms, element, amount, strict \\ :strict)
 
   def take_element(ms, element, :all, strict) do
     case ms do
-      %{^element => count} ->
-        {delete(ms, element, :all, strict), List.duplicate(element, count)}
+      %{^element => amount} ->
+        {delete(ms, element, :all, strict), List.duplicate(element, amount)}
 
       %{} ->
         take_element(ms, element, 0)
     end
   end
 
-  def take_element(ms, element, count, strict) do
+  def take_element(ms, element, amount, strict) do
     case ms do
       %{^element => available} ->
-        n = min(count, available)
+        n = min(amount, available)
         {delete(ms, element, n, strict), List.duplicate(element, n)}
 
       %{} ->

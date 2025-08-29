@@ -40,22 +40,22 @@ defmodule One9.MsTest do
 
   property "delete/3 result strict whenever inputs are strict" do
     check all ms <- t_strict() do
-      check all {value, count} <- tuple({
+      check all {value, amount} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         one_of([:all, non_negative_integer()])
       }) do
-        assert One9.Ms.strict?(One9.Ms.delete(ms, value, count))
+        assert One9.Ms.strict?(One9.Ms.delete(ms, value, amount))
       end
     end
   end
 
   property "delete/4 (:lax) result preserves all keys from input" do
     check all ms <- t(strict: false) do
-      check all {value, count} <- tuple({
+      check all {value, amount} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         one_of([:all, non_negative_integer()])
       }) do
-        result = One9.Ms.delete(ms, value, count, :lax)
+        result = One9.Ms.delete(ms, value, amount, :lax)
 
         assert Enum.all?(Map.keys(ms), &Map.has_key?(result, &1))
       end
@@ -64,11 +64,11 @@ defmodule One9.MsTest do
 
   property "delete/4 (:strict) result always strict" do
     check all ms <- t(strict: true) do
-      check all {value, count} <- tuple({
+      check all {value, amount} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         one_of([:all, non_negative_integer()])
       }) do
-        assert One9.Ms.strict?(One9.Ms.delete(ms, value, count, :strict))
+        assert One9.Ms.strict?(One9.Ms.delete(ms, value, amount, :strict))
       end
     end
   end
@@ -205,22 +205,22 @@ defmodule One9.MsTest do
 
   property "put/3 returns a strict multiset whenever input is strict" do
     check all ms <- t_strict() do
-      check all {value, count} <- tuple({
+      check all {value, amount} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         non_negative_integer()
       }) do
-        assert One9.Ms.strict?(One9.Ms.put(ms, value, count))
+        assert One9.Ms.strict?(One9.Ms.put(ms, value, amount))
       end
     end
   end
 
   property "put/4 (:lax) result preserves all keys from input" do
     check all ms <- t() do
-      check all {value, count} <- tuple({
+      check all {value, amount} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         non_negative_integer()
       }) do
-        result = One9.Ms.put(ms, value, count, :lax)
+        result = One9.Ms.put(ms, value, amount, :lax)
 
         assert Enum.all?(Map.keys(ms), &Map.has_key?(result, &1))
       end
@@ -229,13 +229,13 @@ defmodule One9.MsTest do
 
   property "put/4 (:strict) result always strict" do
     check all ms <- t_strict() do
-      check all {value, count} <- tuple({
+      check all {value, amount} <- tuple({
         one_of_([One9.Ms.support(ms), term()]),
         one_of([non_negative_integer(), :default!])
       }) do
-        result = case count do
+        result = case amount do
           :default! -> One9.Ms.put(ms, value, :strict)
-          count -> One9.Ms.put(ms, value, count, :strict)
+          amount -> One9.Ms.put(ms, value, amount, :strict)
         end
 
         assert One9.Ms.strict?(result)
