@@ -1177,26 +1177,53 @@ defmodule One9.Ms do
   @spec take_element(t_strict(e1), e2, non_neg_integer()) :: {t_strict(e1), [e2]} when e1: term, e2: term
   @spec take_element(t_strict(e1), e2, non_neg_integer(), :strict) :: {t_strict(e1), [e2]} when e1: term, e2: term
 
-  def take_element(ms, element, amount, strict \\ :strict)
+  def take_element(ms, element, amount \\ 1, strict \\ :strict)
 
-  def take_element(ms, element, :all, strict) do
+  def take_element(ms, element, :all, :strict) do
     case ms do
-      %{^element => amount} ->
-        {delete(ms, element, :all, strict), List.duplicate(element, amount)}
+      %{^element => available} ->
+        {Map.delete(ms, element), List.duplicate(element, available)}
 
       %{} ->
-        take_element(ms, element, 0)
+        {ms, []}
     end
   end
 
-  def take_element(ms, element, amount, strict) do
+  def take_element(ms, element, amount, :strict) do
     case ms do
       %{^element => available} ->
-        n = min(amount, available)
-        {delete(ms, element, n, strict), List.duplicate(element, n)}
+        taken = min(amount, available)
+        remaining = available - taken
+        if remaining > 0 do
+          {Map.replace(ms, element, remaining), List.duplicate(element, taken)}
+        else
+          {Map.delete(ms, element), List.duplicate(element, taken)}
+        end
 
       %{} ->
-        take_element(ms, element, 0)
+        {ms, []}
+    end
+  end
+
+  def take_element(ms, element, :all, :lax) do
+    case ms do
+      %{^element => available} ->
+        {Map.replace(ms, element, 0), List.duplicate(element, available)}
+
+      %{} ->
+        {ms, []}
+    end
+  end
+
+  def take_element(ms, element, amount, :lax) do
+    case ms do
+      %{^element => available} ->
+        taken = min(amount, available)
+        remaining = available - taken
+        {Map.replace(ms, element, remaining), List.duplicate(element, taken)}
+
+      %{} ->
+        {ms, []}
     end
   end
 end
