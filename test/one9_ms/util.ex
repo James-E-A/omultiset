@@ -9,27 +9,30 @@ defmodule One9.MsTest.Util do
 
   import StreamData
 
+  #doc "https://en.wikipedia.org/wiki/Material_conditional"
+  defmacro implies(a, b) do
+    quote do: not (unquote(a) and not unquote(b))
+  end
+
   def t(value, options) do
     case Keyword.pop(options, :strict, false) do
       {false, []} ->
         map_of(value, non_negative_integer())
 
       {true, []} ->
-        t_strict(value)
+        map_of(value, positive_integer())
 
       {:never, []} ->
-        tuple({t(value), value})
-        |> map(fn {ms, absent_element} -> Map.put(ms, absent_element, 0) end)
+        map_of(value, one_of([constant(0), positive_integer()]), min_length: 1)
+        |> filter(&(0 in Map.values(&1)))
     end
   end
   def t(options_or_value \\ [])
   def t(options) when is_list(options), do: t(term(), options)
   def t(value), do: t(value, [])
 
-  def t_strict(value) do
-    map_of(value, positive_integer())
-  end
-  def t_strict(), do: t_strict(term())
+  def t_strict(value), do: t(value, strict: true)
+  def t_strict(), do: t(term(), strict: true)
 
   def t0(value) do
     one_of([

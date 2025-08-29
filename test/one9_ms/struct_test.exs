@@ -3,7 +3,8 @@ defmodule One9.MultisetTest do
   use ExUnitProperties
   doctest One9.Multiset
 
-  import One9.MsTest.Util, only: [one_of_: 1, range_within: 1]
+  import One9.MsTest.Util, only: [one_of_: 1, range_within: 1, implies: 2]
+  require One9.MsTest.Util
 
   test "inspect" do
     assert inspect(One9.Multiset.new()) === "One9.Multiset.new([])"
@@ -36,11 +37,6 @@ defmodule One9.MultisetTest do
   def t_and_subset(options_or_value \\ [])
   def t_and_subset(options) when is_list(options), do: t_and_subset(term(), options)
   def t_and_subset(value), do: t_and_subset(value, [])
-
-  #doc "https://en.wikipedia.org/wiki/Material_conditional"
-  defmacrop implies(a, b) do
-    quote do: not (unquote(a) and not unquote(b))
-  end
 
   property "new/1 idempotence" do
     check all mset <- t() do
@@ -88,7 +84,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "empty/1 basic correctness" do
+  property "empty/1 behaves as expected" do
     assert One9.Multiset.empty?(One9.Multiset.new([]))
     refute One9.Multiset.empty?(One9.Multiset.new([[]]))
     refute One9.Multiset.empty?(One9.Multiset.new([nil]))
@@ -229,7 +225,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "put/3 basic correctness" do
+  property "put/3 behaves as expected" do
     check all mset <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Multiset.support(mset), term()]),
@@ -270,7 +266,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "delete/3 basic correctness" do
+  property "delete/3 behaves as expected" do
     check all mset <- t() do
       check all {value, count} <- tuple({
         one_of_([One9.Multiset.support(mset), term()]),
@@ -302,7 +298,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "subset?/1 works as expected" do
+  property "subset?/1 behaves as expected" do
     check all mset1 <- t(), mset2 <- t() do
       assert One9.Multiset.subset?(mset1, mset2) ===
         Enum.all?(One9.Multiset.support(mset1), fn value ->
@@ -312,7 +308,16 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "sum/2 basic correctness" do
+  property "subset?/2 is transitive" do
+    check all mset1 <- t(), {mset2, mset3} <- t_and_subset() do
+      assert implies \
+        One9.Multiset.subset?(mset1, mset2)
+          and One9.Multiset.subset?(mset2, mset3),
+        One9.Multiset.subset?(mset1, mset3)
+    end
+  end
+
+  property "sum/2 behaves as expected" do
     check all mset1 <- t(), mset2 <- t() do
       result = One9.Multiset.sum(mset1, mset2)
 
@@ -332,7 +337,12 @@ defmodule One9.MultisetTest do
     check all mset <- t() do
       assert One9.Multiset.equals? \
         One9.Multiset.sum(mset, mset),
-        One9.Multiset.new(:maps.map(fn _, count -> count*2 end, mset.counts))
+        One9.Multiset.from_counts(:maps.map(
+          fn
+            _, count -> count*2
+          end,
+          One9.Multiset.to_counts(mset)
+        ))
     end
   end
 
@@ -351,7 +361,7 @@ defmodule One9.MultisetTest do
     end
   end
 
-  property "union basic correctness" do
+  property "union behaves as expected" do
     check all mset1 <- t(), mset2 <- t() do
       result = One9.Multiset.union(mset1, mset2)
 

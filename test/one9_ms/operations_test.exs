@@ -6,6 +6,7 @@ defmodule One9.MsTest do
   import One9.Ms.Util
   require One9.Ms.Util
   import One9.MsTest.Util
+  require One9.MsTest.Util
 
   test "counts/0 returns the empty multiset" do
     assert One9.Ms.counts() === %{}
@@ -176,6 +177,18 @@ defmodule One9.MsTest do
     end
   end
 
+  property "from_counts/2 (:lax) preserves all keys from input" do
+    check all counts <- t0() do
+      keys = case counts do
+        map when is_non_struct_map(map) -> Map.keys(map)
+        enum -> Enum.map(enum, fn {key, _} -> key end)
+      end
+      result = One9.Ms.from_counts(counts, :lax)
+
+      assert Enum.all?(keys, &Map.has_key?(result, &1))
+    end
+  end
+
   test "put/2 puts 1 copy" do
     assert One9.Ms.put(%{"dog" => 3, "cat" => 1}, "cat") ===
       %{"dog" => 3, "cat" => 2}
@@ -263,7 +276,21 @@ defmodule One9.MsTest do
     end
   end
 
-  property "symmetric_difference/2 basic correctness" do
+  property "subset?/2 is idempotent" do
+    check all ms <- t() do
+      assert One9.Ms.subset?(ms, ms)
+    end
+  end
+
+  property "subset?/2 is transitive" do
+    check all ms1 <- t(), {ms2, ms3} <- t_and_subset() do
+      assert implies \
+        One9.Ms.subset?(ms1, ms2) and One9.Ms.subset?(ms2, ms3),
+        One9.Ms.subset?(ms1, ms3)
+    end
+  end
+
+  property "symmetric_difference/2 behaves as expected" do
     check all ms1 <- t(), ms2 <- t() do
       result = One9.Ms.symmetric_difference(ms1, ms2)
 
@@ -295,9 +322,42 @@ defmodule One9.MsTest do
     end
   end
 
+  property "union/2 behaves as expected" do
+    check all ms1 <- t(), ms2 <- t() do
+      result = One9.Ms.union(ms1, ms2)
+
+      check all value <- one_of_([One9.Ms.support(ms1), One9.Ms.support(ms2), term()]) do
+        assert One9.Ms.count_element(result, value) ===
+          max(One9.Ms.count_element(ms1, value), One9.Ms.count_element(ms2, value))
+      end
+    end
+  end
+
   property "union/2 result strict whenever inputs are strict" do
     check all ms1 <- t_strict(), ms2 <- t_strict() do
       assert One9.Ms.strict?(One9.Ms.union(ms1, ms2))
+    end
+  end
+
+  property "union/2 is idempotent" do
+    check all ms <- t() do
+      assert One9.Ms.equals?(One9.Ms.union(ms, ms), ms)
+    end
+  end
+
+  property "union/2 is commutative" do
+    check all ms1 <- t(), ms2 <- t() do
+      assert One9.Ms.equals? \
+        One9.Ms.union(ms1, ms2),
+        One9.Ms.union(ms2, ms1)
+    end
+  end
+
+  property "union/2 is associative" do
+    check all ms1 <- t(), ms2 <- t(), ms3 <- t() do
+      assert One9.Ms.equals? \
+        One9.Ms.union(One9.Ms.union(ms1, ms2), ms3),
+        One9.Ms.union(ms1, One9.Ms.union(ms2, ms3))
     end
   end
 end
@@ -312,9 +372,11 @@ defmodule One9.MsUtilTest do
   test "guards" do
     assert is_non_neg_integer(1)
     assert is_non_neg_integer(0)
+    refute is_non_neg_integer(0.0)
     refute is_non_neg_integer(-1)
 
     assert is_pos_integer(1)
+    refute is_pos_integer(1.0)
     refute is_pos_integer(0)
     refute is_pos_integer(-1)
 
