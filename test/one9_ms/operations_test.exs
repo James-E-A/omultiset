@@ -177,10 +177,8 @@ defmodule One9.MsTest do
   end
 
   test "put/2 puts 1 copy" do
-    assert \
-      %{"dog" => 3, "cat" => 1}
-      |> One9.Ms.put("cat") ===
-        %{"dog" => 3, "cat" => 2}
+    assert One9.Ms.put(%{"dog" => 3, "cat" => 1}, "cat") ===
+      %{"dog" => 3, "cat" => 2}
 
     check all ms <- t() do
       check all value <- one_of_([One9.Ms.support(ms), term()]) do
