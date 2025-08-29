@@ -47,7 +47,7 @@ defmodule One9.Ms do
 
   See also `from_counts/1`.
   """
-  @spec counts([e] | Enumerable.t(e)) :: t_strict(e) when e: term
+  @spec counts([e] | Enumerable.t(e)) :: t_strict(e) when e: term()
 
   def counts(elements \\ [])
 
@@ -57,8 +57,8 @@ defmodule One9.Ms do
     |> Map.from_keys(1)
   end
 
-  def counts(%One9.Multiset{} = multiset) do
-    One9.Multiset.to_counts(multiset)
+  def counts(%One9.Multiset{} = mset) do
+    One9.Multiset.to_counts(mset)
   end
 
   def counts(enum) do

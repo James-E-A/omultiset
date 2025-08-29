@@ -3,7 +3,9 @@ defmodule One9.Multiset do
 
   defstruct counts: %{}
 
-  @opaque t(value) :: %__MODULE__{counts: One9.Ms.t_strict(value)}
+  # https://github.com/elixir-lang/elixir/blob/v1.19.0-rc.0/lib/elixir/lib/map_set.ex#L59
+  @opaque internal(value) :: One9.Ms.t_strict(value)
+  @type t(value) :: %__MODULE__{counts: internal(value)}
   @type t :: t(term())
 
   @moduledoc """
