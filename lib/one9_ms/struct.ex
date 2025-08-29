@@ -316,7 +316,7 @@ defmodule One9.Multiset do
   """
   @spec intersection(t(e | e1), t(e | e2)) :: t(e) when e: term, e1: term, e2: term
   def intersection(%__MODULE__{counts: lhs}, %__MODULE__{counts: rhs}),
-    do: %__MODULE__{counts: Ms.intersection(lhs, rhs)}
+    do: %__MODULE__{counts: Ms.intersection(lhs, rhs, :strict)}
 
   @doc """
   Return the sum of two Multisets.
@@ -354,7 +354,7 @@ defmodule One9.Multiset do
   """
   @spec symmetric_difference(t(e1), t(e2)) :: t(e1 | e2) when e1: term, e2: term
   def symmetric_difference(%__MODULE__{counts: lhs}, %__MODULE__{counts: rhs}),
-    do: %__MODULE__{counts: Ms.symmetric_difference(lhs, rhs)}
+    do: %__MODULE__{counts: Ms.symmetric_difference(lhs, rhs, :strict)}
 
   @doc """
   ## Examples
@@ -370,8 +370,7 @@ defmodule One9.Multiset do
   @spec put(t(e1), e2) :: t(e1 | e2) when e1: term, e2: term
   @spec put(t(e1), e2, pos_integer()) :: t(e1 | e2) when e1: term, e2: term
   def put(%__MODULE__{counts: ms}, element, size \\ 1),
-    do: %__MODULE__{counts: Ms.put(ms, element, size)}
-
+    do: %__MODULE__{counts: Ms.put(ms, element, size, :strict)}
 
   @doc """
   ## Examples
@@ -403,7 +402,7 @@ defmodule One9.Multiset do
   """
   @spec take_element(t(e), e1, non_neg_integer()) :: {t(e), [e1]} when e: term, e1: term
   def take_element(%__MODULE__{counts: ms}, element, size) do
-    {ms, l} = Ms.take_element(ms, element, size)
+    {ms, l} = Ms.take_element(ms, element, size, :strict)
     {%__MODULE__{counts: ms}, l}
   end
 
