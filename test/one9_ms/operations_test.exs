@@ -270,6 +270,7 @@ defmodule One9.MsTest do
     assert_raise ArgumentError, fn -> One9.Ms.strict?([]) end
     assert_raise ArgumentError, fn -> One9.Ms.strict?(%{43 => 0.0}) end
     assert_raise ArgumentError, fn -> One9.Ms.strict?(%{43 => -1}) end
+    assert_raise ArgumentError, fn -> One9.Ms.strict?(%{1 => 0, 2 => 0.0}) end
 
     check all bad <- not_t() do
       assert_raise ArgumentError, fn -> One9.Ms.strict?(bad) end

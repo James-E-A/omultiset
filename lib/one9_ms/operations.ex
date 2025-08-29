@@ -1137,11 +1137,11 @@ defmodule One9.Ms do
   @spec strict?(t_strict()) :: true
 
   def strict?(ms) when is_map(ms) do
-    Enum.all?(map_iter(ms), fn
-      {_, count} when is_non_neg_integer(count) ->
-        count > 0
+    Enum.reduce(map_iter(ms), true, fn
+      {_, count}, acc when is_non_neg_integer(count) ->
+        acc and (count > 0)
 
-      _ ->
+      _, _ ->
         raise ArgumentError, "bad multiset"
     end)
   end
