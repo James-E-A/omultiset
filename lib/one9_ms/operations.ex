@@ -451,6 +451,57 @@ defmodule One9.Ms do
   end
 
   @doc """
+  Determine whether the multisets are disjoint (they have no elements in common).
+
+  ## Examples
+
+      iex> %{"dog" => 10} |> disjoint?(%{"cat" => 1})
+      true
+
+      iex> %{"cat" => 10, "dog" => 10} |> disjoint?(%{"cat" => 1})
+      false
+
+      iex> %{"unicorn" => 0} |> disjoint?(%{"unicorn" => 1})
+      true
+  """
+  @spec disjoint?(t(), t()) :: boolean()
+  @spec disjoint?(t(), t(), :lax) :: boolean()
+  @spec disjoint?(t_strict(), t_strict(), :strict) :: boolean()
+
+  def disjoint?(ms1, ms2, strict \\ :lax)
+
+  def disjoint?(ms1, ms2, strict) when map_size(ms2) > map_size(ms1),
+    do: disjoint?(ms2, ms1, strict)
+
+  def disjoint?(ms1, ms2, :strict) do
+    Enum.all?(map_iter(ms2), fn {element, _} ->
+      case ms1 do
+        %{^element => _} ->
+          false
+
+        _ ->
+          true
+      end
+    end)
+  end
+
+  def disjoint?(ms1, ms2, :lax) do
+    Enum.all?(map_iter(ms2), fn
+      {element, n2} when n2 > 0 ->
+        case ms1 do
+          %{^element => n1} when n1 > 0 ->
+            false
+
+          _ ->
+            true
+        end
+
+      _ ->
+        true
+    end)
+  end
+
+  @doc """
   Determine whether the multiset is empty.
 
   ## Examples
