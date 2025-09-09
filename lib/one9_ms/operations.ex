@@ -597,6 +597,35 @@ defmodule One9.Ms do
     ), :lax)
   end
 
+  @spec filter(t(e), (e -> boolean()) | (e, non_neg_integer() -> boolean())) :: t(e) when e: term()
+  @spec filter(t(e), (e -> boolean()) | (e, non_neg_integer() -> boolean()), :lax) :: t(e) when e: term()
+
+  @spec filter(t_strict(e), (e -> boolean()) | (e, non_neg_integer() -> boolean())) :: t_strict(e) when e: term()
+  @spec filter(t_strict(e), (e -> boolean()) | (e, non_neg_integer() -> boolean()), :strict) :: t_strict(e) when e: term()
+
+  def filter(ms, fun, strict \\ :lax)
+
+  def filter(ms, fun, :strict) when is_function(fun, 1) do
+    :maps.filter(fn element, _ -> fun.(element) end, ms)
+  end
+
+  def filter(ms, fun, :strict) when is_function(fun, 2) do
+    :maps.filter(fun, ms)
+  end
+
+  def filter(ms, fun, :lax) when is_function(fun, 1) do
+    :maps.filter(fn
+      element, count when count > 0 ->
+        fun.(element)
+
+      _, 0 ->
+        true
+    end, ms)
+  end
+
+  def filter(ms, fun, :lax) when is_function(fun, 2),
+    do: filter(ms, fun, :strict)
+
   @doc """
   Construct a well-formed multiset from any enumerable of multiplicities (`t:t0/0`).
 
