@@ -533,15 +533,14 @@ defmodule One9.Ms do
       map_iter(ms2),
       ms1,
       fn {element, n2}, acc ->
-        case acc do
-          %{^element => n1} ->
-            if n1 === n2 do
-              # maybe equal
-              {:cont, Map.delete(acc, element)}
-            else
-              # not equal
-              {:halt, acc}
-            end
+        n1 = Map.get(acc, element, 0)
+
+        if n1 === n2 do
+          # maybe equal
+          {:cont, Map.delete(acc, element)}
+        else
+          # definitely unequal
+          {:halt, acc}
         end
       end
     ), :lax)

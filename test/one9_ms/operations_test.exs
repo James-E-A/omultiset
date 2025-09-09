@@ -167,6 +167,12 @@ defmodule One9.MsTest do
     end
   end
 
+  property "equals?/2 round-trip with to_list" do
+    check all ms <- t() do
+      assert One9.Ms.equals?(One9.Ms.counts(One9.Ms.to_list(ms)), ms)
+    end
+  end
+
   test "from_counts/0 returns the empty multiset" do
     assert One9.Ms.from_counts() === %{}
   end
